@@ -1,0 +1,12 @@
+{
+  "name": "kuro-roasters-webmcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A WebMCP demo disguised as a coffee bean shop, with Gemini function calling wired up.",
+  "scripts": {
+    "dev": "npx serve ."
+  },
+  "license": "MIT",
+  "author": "Kuro Hsu",
+  "homepage": "https://github.com/kurotanshi/kuro-roasters-webmcp"
+}

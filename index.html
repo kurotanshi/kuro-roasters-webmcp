@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WebMCP Demo｜Kuro Roasters</title>
+  <meta name="description" content="WebMCP 範例：一個假想的手沖咖啡豆選購頁面，註冊五個 tool 讓 AI Agent 能搜尋、加入購物車、結帳。">
+  <script>
+    // 預先告訴 @mcp-b/global 如果原生 API 已經存在就不要動它
+    window.__webModelContextOptions = {
+      autoInitialize: true,
+      nativeModelContextBehavior: 'preserve'
+    };
+  </script>
+  <script src="/vendor/mcp-b-global.iife.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #fdfaf5;
+      --fg: #2a2320;
+      --muted: #7d6e65;
+      --border: #e8ded1;
+      --card: #ffffff;
+      --accent: #8b4513;
+      --accent-soft: #fdf1e4;
+      --success: #16a34a;
+      --warning: #d97706;
+      --danger: #b84b3a;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1613;
+        --fg: #f0e5d8;
+        --muted: #a89990;
+        --border: #3a2f27;
+        --card: #251e1a;
+        --accent: #d98c5f;
+        --accent-soft: #3a2820;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC",
+                   "Noto Sans TC", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      margin: 0;
+      padding: 0 0 4rem;
+      line-height: 1.6;
+    }
+    .container { max-width: 820px; margin: 0 auto; padding: 2rem 1rem; }
+    header { margin-bottom: 1.5rem; }
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      margin-bottom: 0.25rem;
+    }
+    .brand h1 { font-size: 1.75rem; margin: 0; letter-spacing: 0.02em; }
+    .brand .subtitle { color: var(--muted); font-size: 0.9rem; }
+    h2 { font-size: 1.1rem; margin: 2rem 0 0.75rem; }
+    p { margin: 0.5rem 0; color: var(--muted); }
+    code {
+      background: var(--card);
+      padding: 0.125rem 0.375rem;
+      border-radius: 0.25rem;
+      font-size: 0.875em;
+      border: 1px solid var(--border);
+    }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.8125rem;
+      margin-top: 0.25rem;
+    }
+    .status.native { background: rgba(22, 163, 74, 0.12); color: var(--success); }
+    .status.polyfill { background: rgba(217, 119, 6, 0.12); color: var(--warning); }
+    .status.none { background: rgba(184, 75, 58, 0.12); color: var(--danger); }
+    .dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: currentColor; }
+
+    input, select, button {
+      font: inherit;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 0.375rem;
+      background: var(--bg);
+      color: var(--fg);
+    }
+    button {
+      cursor: pointer;
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    button:hover { filter: brightness(1.08); }
+    button:active { filter: brightness(0.92); }
+    button.ghost { background: transparent; color: var(--fg); }
+    button.small {
+      padding: 0.3rem 0.6rem;
+      font-size: 0.8125rem;
+    }
+    button.danger { background: transparent; color: var(--danger); border-color: var(--border); }
+
+    .filter-bar {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .filter-bar input, .filter-bar select { flex: 1; min-width: 140px; }
+
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 0.75rem;
+    }
+    .product-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .product-card .name { font-weight: 600; font-size: 1rem; }
+    .product-card .meta {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      font-size: 0.75rem;
+    }
+    .tag {
+      display: inline-block;
+      background: var(--accent-soft);
+      color: var(--accent);
+      padding: 0.125rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+    }
+    .product-card .flavor {
+      color: var(--muted);
+      font-size: 0.8125rem;
+      flex: 1;
+    }
+    .product-card .price-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 0.25rem;
+    }
+    .price { font-weight: 600; color: var(--accent); }
+
+    .cart {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 1rem;
+    }
+    .cart-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .cart-item:last-child { border-bottom: none; }
+    .cart-total {
+      display: flex;
+      justify-content: space-between;
+      padding-top: 0.75rem;
+      margin-top: 0.75rem;
+      border-top: 2px solid var(--border);
+      font-weight: 600;
+    }
+    .cart-empty { color: var(--muted); text-align: center; padding: 0.5rem 0; }
+    .cart-actions { margin-top: 0.75rem; display: flex; gap: 0.5rem; justify-content: flex-end; }
+
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 0.5rem;
+      margin: 0.75rem 0;
+    }
+
+    /* Agent 模擬 */
+    .agent-panel {
+      background: var(--accent-soft);
+      border: 1px solid var(--accent);
+      border-radius: 0.5rem;
+      padding: 1rem;
+    }
+    .agent-panel .scenario-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin: 0.75rem 0;
+    }
+    .agent-panel .scenario-row button { flex: 1; min-width: 180px; }
+    .agent-log {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 0.375rem;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.8125rem;
+      min-height: 120px;
+      max-height: 360px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+    }
+    .agent-log-line { display: flex; gap: 0.5rem; align-items: flex-start; }
+    .agent-log-line .label {
+      flex-shrink: 0;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      padding: 0.0625rem 0.375rem;
+      border-radius: 0.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      line-height: 1.4;
+    }
+    .agent-log-line.user .label   { background: #374151; color: #fff; }
+    .agent-log-line.think .label  { background: var(--accent); color: #fff; }
+    .agent-log-line.call .label   { background: #d97706; color: #fff; }
+    .agent-log-line.result .label { background: #16a34a; color: #fff; }
+    .agent-log-line.error .label  { background: var(--danger); color: #fff; }
+    .agent-log-line .content { flex: 1; word-break: break-word; }
+    .agent-log-empty { color: var(--muted); text-align: center; padding: 1.5rem 0; }
+
+    .highlight-flash {
+      animation: flash 0.9s ease-out;
+    }
+    @keyframes flash {
+      0%   { box-shadow: 0 0 0 4px var(--accent); }
+      100% { box-shadow: 0 0 0 0 transparent; }
+    }
+
+    /* 實際對話面板 */
+    .chat-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 1rem;
+    }
+    .chat-panel details { margin-bottom: 0.75rem; }
+    .chat-panel summary {
+      cursor: pointer;
+      font-weight: 600;
+      padding: 0.25rem 0;
+    }
+    .chat-panel summary:hover { color: var(--accent); }
+    .chat-input-row { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+    .chat-input-row input { flex: 1; }
+    .chat-meta-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .chat-meta-row .hint { margin: 0; }
+    .warn-banner {
+      background: rgba(184, 75, 58, 0.08);
+      border-left: 3px solid var(--danger);
+      color: var(--fg);
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.25rem;
+      font-size: 0.8125rem;
+      margin-top: 0.5rem;
+    }
+    pre {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.375rem;
+      padding: 0.75rem;
+      overflow-x: auto;
+      font-size: 0.8125rem;
+      margin: 0.5rem 0 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .hint { font-size: 0.875rem; color: var(--muted); }
+    hr { border: 0; border-top: 1px solid var(--border); margin: 2rem 0 1rem; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <h1>Kuro Roasters</h1>
+        <span class="subtitle">手沖咖啡豆選購（WebMCP Demo）</span>
+      </div>
+      <p>一個假想的咖啡豆選購頁面，註冊了五個 tool 給 AI Agent 使用：搜尋商品、看商品細節、加入購物車、查看購物車、結帳。</p>
+      <div id="status" class="status none">
+        <span class="dot"></span>
+        <span id="status-text">偵測中…</span>
+      </div>
+    </header>
+
+    <section>
+      <h2>咖啡豆清單</h2>
+      <div class="filter-bar">
+        <input id="filter-query" type="text" placeholder="搜尋名稱或風味…" autocomplete="off" />
+        <select id="filter-origin">
+          <option value="">所有產地</option>
+        </select>
+        <select id="filter-roast">
+          <option value="">所有烘焙度</option>
+          <option value="淺焙">淺焙</option>
+          <option value="中焙">中焙</option>
+          <option value="深焙">深焙</option>
+        </select>
+      </div>
+      <div id="product-grid" class="product-grid"></div>
+    </section>
+
+    <section>
+      <h2>購物車</h2>
+      <div id="cart" class="cart"></div>
+    </section>
+
+    <section>
+      <h2>模擬 Agent 操作</h2>
+      <div class="agent-panel">
+        <p class="hint" style="margin-top:0">
+          按下情境按鈕，畫面會照一段「使用者說話 → Agent 思考 → 呼叫 tool → 畫面更新」的腳本跑過一遍，
+          搜尋條件、購物車會自己動，遇到寫入類 tool 還會跳確認視窗。
+          這就是真的 Agent 接上之後你會看到的畫面，差別只在這裡的「思考」是寫死的腳本、真實情況由 LLM 決定。
+        </p>
+        <div class="scenario-row">
+          <button data-scenario="light-roast">🎬 情境 A：找 500 元以下的淺焙豆並加入購物車</button>
+          <button data-scenario="gesha-checkout">🎬 情境 B：買一款藝伎並結帳</button>
+        </div>
+        <div class="scenario-row">
+          <button class="ghost" data-scenario="reset">重置畫面狀態</button>
+        </div>
+        <div id="agent-log" class="agent-log">
+          <div class="agent-log-empty">尚未執行，選上面任一個情境開始</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>真的跟 Agent 對話（需要 Gemini API Key）</h2>
+      <div class="chat-panel">
+        <details id="chat-config">
+          <summary>設定 API Key 與模型</summary>
+          <div class="form-row" style="margin-top:0.75rem">
+            <input id="api-key-input" type="password" placeholder="AIzaSy..." autocomplete="off" />
+            <select id="model-select">
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash（便宜快速，有免費額度）</option>
+              <option value="gemini-2.5-pro">Gemini 2.5 Pro（更聰明）</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <button class="small" id="save-key-btn">儲存</button>
+            <button class="ghost small danger" id="clear-key-btn">清除金鑰</button>
+            <span id="key-status" class="hint" style="align-self:center">未設定</span>
+          </div>
+          <div class="warn-banner">
+            可以到 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a> 申請一把免費的 Gemini API key。
+            金鑰只會存在你自己瀏覽器的 <code>localStorage</code>，從瀏覽器直接打
+            <code>generativelanguage.googleapis.com</code>，不經過這個站的伺服器。
+            公開電腦請用完後按「清除金鑰」。
+          </div>
+        </details>
+
+        <div id="chat-log" class="agent-log">
+          <div class="agent-log-empty">設定好 API key 後，試試看跟它說「幫我找衣索比亞的豆子」之類的需求</div>
+        </div>
+
+        <div class="chat-input-row">
+          <input id="chat-input" type="text" placeholder="想請 Agent 幫你做什麼？" autocomplete="off" disabled />
+          <button id="send-btn" disabled>送出</button>
+        </div>
+        <div class="chat-meta-row">
+          <p class="hint">Agent 會透過這頁註冊的 5 個 WebMCP tool 實際操作畫面，加入購物車或結帳仍會跳確認視窗。</p>
+          <button class="ghost small" id="chat-reset-btn">清空對話</button>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>手動觸發 Tool</h2>
+      <p class="hint">如果想一次呼叫一個 tool 看 input / output 格式，用下面的按鈕。這跟 Agent 實際呼叫的資料結構一致。</p>
+      <div class="tool-grid">
+        <button class="ghost" data-tool="search_products">search_products</button>
+        <button class="ghost" data-tool="get_product">get_product</button>
+        <button class="ghost" data-tool="add_to_cart">add_to_cart</button>
+        <button class="ghost" data-tool="view_cart">view_cart</button>
+        <button class="ghost" data-tool="checkout">checkout</button>
+      </div>
+      <pre id="output">還沒有輸出，按上面任一顆按鈕試試看。</pre>
+    </section>
+
+    <hr>
+
+    <section>
+      <h2>怎麼實際讓 Agent 來呼叫</h2>
+      <p class="hint">
+        最完整的體驗在 Chrome 146+ Canary：打開 <code>chrome://flags</code>，搜尋並啟用
+        <em>Experimental Web Platform features</em>，重開瀏覽器後回到這頁，狀態列會顯示「原生 API」。
+        安裝 <em>Model Context Tool Inspector</em> 擴充（Chrome Web Store 搜尋名稱）就能看到註冊的 tool 並手動觸發。
+      </p>
+      <p class="hint">
+        其他瀏覽器（含一般 Chrome / Safari / Firefox）這頁會透過
+        <a href="https://www.npmjs.com/package/@mcp-b/global" target="_blank" rel="noopener"><code>@mcp-b/global</code></a>
+        polyfill 補上 <code>navigator.modelContext</code>，手動觸發面板仍可運作，tool 本身也實際註冊完成，
+        只是目前沒有這些瀏覽器內建的 Agent 可以自動呼叫它。
+      </p>
+      <p class="hint">
+        購物車狀態存在 <code>localStorage</code>，資料不會上傳。想清空執行 <code>localStorage.clear()</code> 即可。
+      </p>
+    </section>
+  </div>
+
+  <script>
+    // --- 商品資料 ---
+    const PRODUCTS = [
+      { id: 1,  name: '耶加雪菲 水洗',   origin: '衣索比亞',   roast: '淺焙',  price: 480,  flavor: '茉莉、檸檬、紅茶尾韻' },
+      { id: 2,  name: '耶加雪菲 日曬',   origin: '衣索比亞',   roast: '中淺焙', price: 520,  flavor: '草莓、藍莓、發酵感' },
+      { id: 3,  name: '安提瓜 瓜吉花神', origin: '瓜地馬拉',   roast: '中焙',   price: 450,  flavor: '可可、堅果、焦糖' },
+      { id: 4,  name: '涅里 AA 頂級',    origin: '肯亞',       roast: '中焙',   price: 580,  flavor: '黑醋栗、番茄、明亮酸' },
+      { id: 5,  name: '娜玲瓏莊園',      origin: '哥倫比亞',   roast: '中焙',   price: 420,  flavor: '橘子、蜂蜜、巧克力' },
+      { id: 6,  name: '喜拉朵',          origin: '巴西',       roast: '深焙',   price: 380,  flavor: '核桃、黑糖、低酸' },
+      { id: 7,  name: '翡翠莊園 藝伎',   origin: '巴拿馬',     roast: '淺焙',   price: 1200, flavor: '茉莉、佛手柑、白桃' },
+      { id: 8,  name: '曼特寧 G1',       origin: '印尼',       roast: '深焙',   price: 450,  flavor: '木質、黑巧克力、濃厚 body' }
+    ];
+
+    // 把「中淺焙」歸到「淺焙」filter 時同時包含
+    function matchRoast(product, roast) {
+      if (!roast) return true;
+      if (roast === '淺焙') return product.roast === '淺焙' || product.roast === '中淺焙';
+      return product.roast === roast;
+    }
+
+    // --- 狀態 ---
+    const CART_KEY = 'webmcp-demo-cart';
+    let cart = JSON.parse(localStorage.getItem(CART_KEY) || '[]');
+    let lastFilter = {};
+
+    const statusEl = document.getElementById('status');
+    const statusTextEl = document.getElementById('status-text');
+    const gridEl = document.getElementById('product-grid');
+    const cartEl = document.getElementById('cart');
+    const outputEl = document.getElementById('output');
+    const queryEl = document.getElementById('filter-query');
+    const originEl = document.getElementById('filter-origin');
+    const roastEl = document.getElementById('filter-roast');
+
+    // 填入產地選項
+    [...new Set(PRODUCTS.map(p => p.origin))].sort().forEach(origin => {
+      const opt = document.createElement('option');
+      opt.value = origin;
+      opt.textContent = origin;
+      originEl.appendChild(opt);
+    });
+
+    function saveCart() {
+      localStorage.setItem(CART_KEY, JSON.stringify(cart));
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    function formatPrice(n) {
+      return 'NT$' + n.toLocaleString('zh-TW');
+    }
+
+    // --- 核心邏輯 ---
+    function searchProducts({ query, origin, roast, maxPrice } = {}) {
+      const q = (query || '').trim().toLowerCase();
+      return PRODUCTS.filter(p => {
+        if (q && !(`${p.name} ${p.flavor}`.toLowerCase().includes(q))) return false;
+        if (origin && p.origin !== origin) return false;
+        if (!matchRoast(p, roast)) return false;
+        if (maxPrice != null && p.price > Number(maxPrice)) return false;
+        return true;
+      });
+    }
+
+    function getProduct(id) {
+      const p = PRODUCTS.find(x => x.id === Number(id));
+      if (!p) throw new Error(`product ${id} not found`);
+      return p;
+    }
+
+    function addToCart(id, quantity = 1) {
+      const product = getProduct(id);
+      const qty = Math.max(1, Math.floor(Number(quantity) || 1));
+      const existing = cart.find(item => item.id === product.id);
+      if (existing) {
+        existing.quantity += qty;
+      } else {
+        cart.push({ id: product.id, name: product.name, price: product.price, quantity: qty });
+      }
+      saveCart();
+      renderCart();
+      return { added: { id: product.id, name: product.name, quantity: qty }, cart };
+    }
+
+    function viewCart() {
+      const total = cart.reduce((s, item) => s + item.price * item.quantity, 0);
+      return { items: cart, total, itemCount: cart.reduce((s, item) => s + item.quantity, 0) };
+    }
+
+    function removeFromCart(id) {
+      const idx = cart.findIndex(item => item.id === Number(id));
+      if (idx === -1) throw new Error(`cart item ${id} not found`);
+      const [removed] = cart.splice(idx, 1);
+      saveCart();
+      renderCart();
+      return removed;
+    }
+
+    function clearCart() {
+      cart = [];
+      saveCart();
+      renderCart();
+    }
+
+    // --- 渲染 ---
+    function renderProducts() {
+      const filter = {
+        query: queryEl.value.trim() || undefined,
+        origin: originEl.value || undefined,
+        roast: roastEl.value || undefined
+      };
+      lastFilter = filter;
+      const results = searchProducts(filter);
+      gridEl.innerHTML = '';
+      if (results.length === 0) {
+        gridEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:2rem">沒有符合條件的商品</div>';
+        return;
+      }
+      for (const p of results) {
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.innerHTML = `
+          <div class="name">${escapeHtml(p.name)}</div>
+          <div class="meta">
+            <span class="tag">${escapeHtml(p.origin)}</span>
+            <span class="tag">${escapeHtml(p.roast)}</span>
+          </div>
+          <div class="flavor">${escapeHtml(p.flavor)}</div>
+          <div class="price-row">
+            <span class="price">${formatPrice(p.price)}</span>
+            <button class="small" data-add="${p.id}">加入購物車</button>
+          </div>
+        `;
+        gridEl.appendChild(card);
+      }
+    }
+
+    function renderCart() {
+      if (cart.length === 0) {
+        cartEl.innerHTML = '<div class="cart-empty">購物車是空的</div>';
+        return;
+      }
+      const total = cart.reduce((s, item) => s + item.price * item.quantity, 0);
+      cartEl.innerHTML = `
+        ${cart.map(item => `
+          <div class="cart-item">
+            <div>
+              <div>${escapeHtml(item.name)}</div>
+              <div style="font-size:0.8125rem;color:var(--muted)">
+                ${formatPrice(item.price)} × ${item.quantity}
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.5rem">
+              <span>${formatPrice(item.price * item.quantity)}</span>
+              <button class="danger small" data-remove="${item.id}">移除</button>
+            </div>
+          </div>
+        `).join('')}
+        <div class="cart-total">
+          <span>合計</span>
+          <span>${formatPrice(total)}</span>
+        </div>
+        <div class="cart-actions">
+          <button class="ghost small" id="cart-clear">清空</button>
+          <button id="cart-checkout">結帳</button>
+        </div>
+      `;
+    }
+
+    // --- UI 事件 ---
+    [queryEl, originEl, roastEl].forEach(el => {
+      el.addEventListener('input', renderProducts);
+      el.addEventListener('change', renderProducts);
+    });
+    gridEl.addEventListener('click', e => {
+      const addId = e.target.getAttribute('data-add');
+      if (addId) {
+        const result = addToCart(addId, 1);
+        showOutput(result);
+      }
+    });
+    cartEl.addEventListener('click', e => {
+      const removeId = e.target.getAttribute('data-remove');
+      if (removeId) removeFromCart(removeId);
+      if (e.target.id === 'cart-clear') {
+        if (confirm('清空購物車？')) clearCart();
+      }
+      if (e.target.id === 'cart-checkout') {
+        const result = performCheckout();
+        showOutput(result);
+      }
+    });
+
+    function performCheckout() {
+      if (cart.length === 0) {
+        return { status: 'empty', message: '購物車是空的' };
+      }
+      const snapshot = viewCart();
+      if (!confirm(`確定以 ${formatPrice(snapshot.total)} 結帳嗎？`)) {
+        return { status: 'cancelled' };
+      }
+      const orderId = 'ORD-' + Date.now().toString(36).toUpperCase();
+      clearCart();
+      return { status: 'placed', orderId, ...snapshot };
+    }
+
+    function showOutput(data) {
+      outputEl.textContent = JSON.stringify(data, null, 2);
+    }
+
+    // --- Tool UI 反饋輔助 ---
+    function flashElement(el) {
+      if (!el) return;
+      el.classList.remove('highlight-flash');
+      void el.offsetWidth; // 強制重繪觸發動畫
+      el.classList.add('highlight-flash');
+    }
+
+    function reflectFilterArgsOnUI(args) {
+      if (!args) return;
+      let changed = false;
+      if ('query' in args)  { queryEl.value  = args.query  || ''; changed = true; }
+      if ('origin' in args) { originEl.value = args.origin || ''; changed = true; }
+      if ('roast' in args)  { roastEl.value  = args.roast  || ''; changed = true; }
+      if (changed) {
+        renderProducts();
+        flashElement(document.querySelector('.filter-bar'));
+      }
+    }
+
+    function sleep(ms) {
+      return new Promise(r => setTimeout(r, ms));
+    }
+
+    function truncate(text, max = 240) {
+      if (text.length <= max) return text;
+      return text.slice(0, max) + '…';
+    }
+
+    // --- Tool 定義：單一來源，WebMCP 註冊 / 手動面板 / 模擬劇本 / 對話都共用 ---
+    const TOOL_DEFS = [
+      {
+        name: 'search_products',
+        description: '搜尋咖啡豆。可用關鍵字（比對 name 與 flavor）、產地、烘焙度、價格上限過濾。執行後頁面篩選條件會跟著更新。',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query:    { type: 'string', description: '搜尋關鍵字，會比對名稱與風味描述' },
+            origin:   { type: 'string', description: '產地，例如：衣索比亞、肯亞、巴拿馬' },
+            roast:    { type: 'string', enum: ['淺焙', '中焙', '深焙'], description: '烘焙度' },
+            maxPrice: { type: 'number', description: '價格上限（TWD）' }
+          }
+        },
+        annotations: { readOnlyHint: true },
+        execute: async (input) => {
+          const args = input || {};
+          reflectFilterArgsOnUI(args);
+          const results = searchProducts(args);
+          return { content: [{ type: 'text', text: JSON.stringify(results) }] };
+        }
+      },
+      {
+        name: 'get_product',
+        description: '依 id 取得單一咖啡豆的完整資訊（產地、烘焙度、風味、價格）。',
+        inputSchema: {
+          type: 'object',
+          properties: { id: { type: 'number', description: '商品 id' } },
+          required: ['id']
+        },
+        annotations: { readOnlyHint: true },
+        execute: async (input) => {
+          try {
+            return { content: [{ type: 'text', text: JSON.stringify(getProduct(input.id)) }] };
+          } catch (err) {
+            return { content: [{ type: 'text', text: JSON.stringify({ error: err.message }) }] };
+          }
+        }
+      },
+      {
+        name: 'add_to_cart',
+        description: '把指定商品加入購物車。會跳出確認視窗讓使用者核准後才真的加入，使用者取消會回傳 cancelled。',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id:       { type: 'number', description: '商品 id' },
+            quantity: { type: 'number', description: '數量，預設 1', minimum: 1 }
+          },
+          required: ['id']
+        },
+        execute: async (input, client) => {
+          const product = (() => { try { return getProduct(input.id); } catch { return null; } })();
+          if (!product) {
+            return { content: [{ type: 'text', text: JSON.stringify({ error: 'product not found' }) }] };
+          }
+          const qty = input.quantity || 1;
+          const confirmed = await client.requestUserInteraction(async () => {
+            return window.confirm(
+              `Agent 想把「${product.name}」×${qty}（${formatPrice(product.price * qty)}）加入購物車，確定嗎？`
+            );
+          });
+          if (!confirmed) {
+            return { content: [{ type: 'text', text: JSON.stringify({ status: 'cancelled' }) }] };
+          }
+          const result = addToCart(input.id, qty);
+          flashElement(document.getElementById('cart'));
+          return { content: [{ type: 'text', text: JSON.stringify(result) }] };
+        }
+      },
+      {
+        name: 'view_cart',
+        description: '取得目前購物車內容、商品數、合計金額。',
+        inputSchema: { type: 'object', properties: {} },
+        annotations: { readOnlyHint: true },
+        execute: async () => {
+          flashElement(document.getElementById('cart'));
+          return { content: [{ type: 'text', text: JSON.stringify(viewCart()) }] };
+        }
+      },
+      {
+        name: 'checkout',
+        description: '結帳，送出購物車所有項目成為一張訂單。會跳出確認視窗顯示總金額，使用者取消會回傳 cancelled。',
+        inputSchema: { type: 'object', properties: {} },
+        execute: async (input, client) => {
+          const snapshot = viewCart();
+          if (snapshot.items.length === 0) {
+            return { content: [{ type: 'text', text: JSON.stringify({ status: 'empty' }) }] };
+          }
+          const confirmed = await client.requestUserInteraction(async () => {
+            return window.confirm(
+              `Agent 準備送出訂單，總金額 ${formatPrice(snapshot.total)}，確定結帳嗎？`
+            );
+          });
+          if (!confirmed) {
+            return { content: [{ type: 'text', text: JSON.stringify({ status: 'cancelled' }) }] };
+          }
+          const orderId = 'ORD-' + Date.now().toString(36).toUpperCase();
+          clearCart();
+          return {
+            content: [{ type: 'text', text: JSON.stringify({ status: 'placed', orderId, ...snapshot }) }]
+          };
+        }
+      }
+    ];
+
+    async function executeRegisteredTool(name, input) {
+      const def = TOOL_DEFS.find(t => t.name === name);
+      if (!def) throw new Error(`unknown tool: ${name}`);
+      const mockClient = {
+        requestUserInteraction: async (fn) => await fn()
+      };
+      return await def.execute(input || {}, mockClient);
+    }
+
+    function getLlmToolSchemas() {
+      return TOOL_DEFS.map(t => ({
+        name: t.name,
+        description: t.description,
+        input_schema: t.inputSchema
+      }));
+    }
+
+    function unwrapToolResult(wrapped) {
+      if (wrapped?.content?.[0]?.text !== undefined) {
+        try { return JSON.parse(wrapped.content[0].text); }
+        catch { return wrapped.content[0].text; }
+      }
+      return wrapped;
+    }
+
+    // --- 手動觸發 Tool ---
+    document.querySelectorAll('[data-tool]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const name = btn.getAttribute('data-tool');
+        try {
+          let input = {};
+          if (name === 'search_products') {
+            const query = prompt('關鍵字（可留空）：');
+            input = query ? { query } : {};
+          } else if (name === 'get_product') {
+            const id = prompt('商品 id（1-8）：');
+            if (id == null) return;
+            input = { id: Number(id) };
+          } else if (name === 'add_to_cart') {
+            const id = prompt('商品 id（1-8）：');
+            if (id == null) return;
+            const qty = prompt('數量（預設 1）：') || '1';
+            input = { id: Number(id), quantity: Number(qty) };
+          }
+          const wrapped = await executeRegisteredTool(name, input);
+          showOutput(unwrapToolResult(wrapped));
+        } catch (err) {
+          showOutput({ error: err.message });
+        }
+      });
+    });
+
+    // --- 共用 log 元件 ---
+    function appendLog(el, type, text) {
+      const empty = el.querySelector('.agent-log-empty');
+      if (empty) empty.remove();
+      const line = document.createElement('div');
+      line.className = `agent-log-line ${type}`;
+      const labels = { user: '使用者', think: 'Agent', call: 'Tool Call', result: 'Result', error: 'Error' };
+      line.innerHTML = '<span class="label"></span><span class="content"></span>';
+      line.querySelector('.label').textContent = labels[type] || type;
+      line.querySelector('.content').textContent = text;
+      el.appendChild(line);
+      el.scrollTop = el.scrollHeight;
+    }
+
+    // --- 模擬 Agent 操作（寫死的腳本，不需 API Key）---
+    const scenarioLogEl = document.getElementById('agent-log');
+    let scenarioRunning = false;
+
+    const SCENARIOS = {
+      'light-roast': [
+        { type: 'user',  text: '幫我找 500 元以下的淺焙咖啡豆，挑一款加入購物車' },
+        { type: 'think', text: '用 search_products 過濾看看' },
+        { type: 'call',  tool: 'search_products', args: { roast: '淺焙', maxPrice: 500 } },
+        { type: 'think', text: '耶加雪菲水洗評價不錯，把它加入購物車' },
+        { type: 'call',  tool: 'add_to_cart', args: { id: 1, quantity: 1 } }
+      ],
+      'gesha-checkout': [
+        { type: 'user',  text: '我想試試看藝伎，順便結帳' },
+        { type: 'think', text: '先查「藝伎」相關商品' },
+        { type: 'call',  tool: 'search_products', args: { query: '藝伎' } },
+        { type: 'think', text: '只有翡翠莊園藝伎，加入購物車' },
+        { type: 'call',  tool: 'add_to_cart', args: { id: 7, quantity: 1 } },
+        { type: 'think', text: '確認購物車內容' },
+        { type: 'call',  tool: 'view_cart' },
+        { type: 'think', text: '送出結帳' },
+        { type: 'call',  tool: 'checkout' }
+      ]
+    };
+
+    async function runScenario(scenarioId) {
+      if (scenarioRunning) return;
+      if (scenarioId === 'reset') {
+        clearCart();
+        queryEl.value = '';
+        originEl.value = '';
+        roastEl.value = '';
+        renderProducts();
+        scenarioLogEl.innerHTML = '';
+        appendLog(scenarioLogEl, 'user', '重置畫面與購物車');
+        appendLog(scenarioLogEl, 'result', '完成');
+        return;
+      }
+      const steps = SCENARIOS[scenarioId];
+      if (!steps) return;
+
+      scenarioRunning = true;
+      document.querySelectorAll('[data-scenario]').forEach(b => b.disabled = true);
+      scenarioLogEl.innerHTML = '';
+
+      try {
+        for (const step of steps) {
+          if (step.type === 'user') {
+            appendLog(scenarioLogEl, 'user', step.text);
+            await sleep(700);
+          } else if (step.type === 'think') {
+            appendLog(scenarioLogEl, 'think', step.text);
+            await sleep(600);
+          } else if (step.type === 'call') {
+            const argText = step.args && Object.keys(step.args).length > 0
+              ? `${step.tool}(${JSON.stringify(step.args)})`
+              : `${step.tool}()`;
+            appendLog(scenarioLogEl, 'call', argText);
+            try {
+              const wrapped = await executeRegisteredTool(step.tool, step.args || {});
+              const result = unwrapToolResult(wrapped);
+              appendLog(scenarioLogEl, 'result', truncate(JSON.stringify(result)));
+            } catch (err) {
+              appendLog(scenarioLogEl, 'error', err.message);
+              break;
+            }
+            await sleep(600);
+          }
+        }
+      } finally {
+        scenarioRunning = false;
+        document.querySelectorAll('[data-scenario]').forEach(b => b.disabled = false);
+      }
+    }
+
+    document.querySelectorAll('[data-scenario]').forEach(btn => {
+      btn.addEventListener('click', () => runScenario(btn.getAttribute('data-scenario')));
+    });
+
+    // --- 真的跟 Agent 對話（Gemini API）---
+    const API_KEY_STORAGE = 'webmcp-demo-gemini-key';
+    const MODEL_STORAGE   = 'webmcp-demo-gemini-model';
+
+    const apiKeyInput  = document.getElementById('api-key-input');
+    const modelSelect  = document.getElementById('model-select');
+    const chatInput    = document.getElementById('chat-input');
+    const chatLogEl    = document.getElementById('chat-log');
+    const sendBtn      = document.getElementById('send-btn');
+    const saveKeyBtn   = document.getElementById('save-key-btn');
+    const clearKeyBtn  = document.getElementById('clear-key-btn');
+    const chatResetBtn = document.getElementById('chat-reset-btn');
+    const keyStatusEl  = document.getElementById('key-status');
+    const chatConfigEl = document.getElementById('chat-config');
+
+    let geminiKey     = localStorage.getItem(API_KEY_STORAGE) || '';
+    let selectedModel = localStorage.getItem(MODEL_STORAGE) || 'gemini-2.5-flash';
+    // Gemini contents 格式：[{ role: 'user' | 'model', parts: [...] }]
+    let conversation  = [];
+    let chatBusy      = false;
+
+    modelSelect.value = selectedModel;
+
+    function updateKeyStatus() {
+      const hasKey = Boolean(geminiKey);
+      if (hasKey) {
+        const masked = geminiKey.length > 14
+          ? `${geminiKey.slice(0, 8)}…${geminiKey.slice(-4)}`
+          : '已儲存';
+        keyStatusEl.textContent = `已儲存（${masked}）`;
+        keyStatusEl.style.color = 'var(--success)';
+      } else {
+        keyStatusEl.textContent = '未設定';
+        keyStatusEl.style.color = 'var(--muted)';
+      }
+      chatInput.disabled = !hasKey || chatBusy;
+      sendBtn.disabled = !hasKey || chatBusy;
+      if (!hasKey && chatConfigEl && !chatConfigEl.open) {
+        chatConfigEl.open = true;
+      }
+    }
+
+    saveKeyBtn.addEventListener('click', () => {
+      const val = apiKeyInput.value.trim();
+      if (val) {
+        geminiKey = val;
+        localStorage.setItem(API_KEY_STORAGE, val);
+        apiKeyInput.value = '';
+      }
+      selectedModel = modelSelect.value;
+      localStorage.setItem(MODEL_STORAGE, selectedModel);
+      updateKeyStatus();
+    });
+
+    clearKeyBtn.addEventListener('click', () => {
+      if (!confirm('清除儲存的金鑰？')) return;
+      geminiKey = '';
+      localStorage.removeItem(API_KEY_STORAGE);
+      updateKeyStatus();
+    });
+
+    chatResetBtn.addEventListener('click', () => {
+      conversation = [];
+      chatLogEl.innerHTML = '<div class="agent-log-empty">對話已清空</div>';
+    });
+
+    sendBtn.addEventListener('click', sendChatMessage);
+    chatInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendChatMessage();
+      }
+    });
+
+    const SYSTEM_PROMPT = `你是「Kuro Roasters」這間手沖咖啡豆選購店的選品助理。
+你可以透過以下 WebMCP tool 幫使用者搜尋商品、查看細節、加入購物車、看購物車、結帳。
+
+原則：
+- 以繁體中文回覆
+- 需要商品資料時直接呼叫對應 tool，不要自己編造
+- 呼叫 add_to_cart 或 checkout 會跳確認視窗，如果回傳 cancelled 就停下來說明並等使用者下一步
+- 回覆精簡，說清楚你做了什麼、找到什麼、下一步打算做什麼
+- 使用者的需求如果太模糊（例如「幫我挑一款」），先用 search_products 拉清單再給建議`;
+
+    async function sendChatMessage() {
+      if (chatBusy) return;
+      const text = chatInput.value.trim();
+      if (!text) return;
+      if (!geminiKey) {
+        alert('請先在上方設定並儲存 Gemini API key');
+        return;
+      }
+      chatInput.value = '';
+      chatBusy = true;
+      updateKeyStatus();
+
+      try {
+        appendLog(chatLogEl, 'user', text);
+        conversation.push({ role: 'user', parts: [{ text }] });
+        await runChatLoop();
+      } catch (err) {
+        appendLog(chatLogEl, 'error', err.message || String(err));
+      } finally {
+        chatBusy = false;
+        updateKeyStatus();
+      }
+    }
+
+    // 把 TOOL_DEFS 轉成 Gemini 的 function_declarations 格式
+    function getGeminiTools() {
+      return [{
+        functionDeclarations: TOOL_DEFS.map(t => ({
+          name: t.name,
+          description: t.description,
+          parameters: t.inputSchema
+        }))
+      }];
+    }
+
+    async function runChatLoop() {
+      const maxIterations = 6;
+      const tools = getGeminiTools();
+      const systemInstruction = { parts: [{ text: SYSTEM_PROMPT }] };
+
+      for (let iter = 0; iter < maxIterations; iter++) {
+        const response = await callGeminiAPI({
+          contents: conversation,
+          tools,
+          systemInstruction
+        });
+
+        const candidate = response.candidates?.[0];
+        if (!candidate) {
+          appendLog(chatLogEl, 'error', '模型沒有回傳任何 candidate');
+          return;
+        }
+
+        const parts = candidate.content?.parts || [];
+
+        // 先把文字輸出 log 出來
+        for (const part of parts) {
+          if (part.text && part.text.trim()) {
+            appendLog(chatLogEl, 'think', part.text.trim());
+          }
+        }
+
+        conversation.push({ role: 'model', parts });
+
+        // 收集這一輪的 function call
+        const functionCalls = parts.filter(p => p.functionCall);
+        if (functionCalls.length === 0) return;
+
+        const functionResponseParts = [];
+        for (const part of functionCalls) {
+          const { name, args } = part.functionCall;
+          const argText = JSON.stringify(args || {});
+          appendLog(chatLogEl, 'call', `${name}(${argText})`);
+          try {
+            const wrapped = await executeRegisteredTool(name, args || {});
+            const resultText = wrapped?.content?.[0]?.text ?? JSON.stringify(wrapped);
+            appendLog(chatLogEl, 'result', truncate(resultText));
+            let responseObj;
+            try { responseObj = JSON.parse(resultText); }
+            catch { responseObj = { output: resultText }; }
+            functionResponseParts.push({
+              functionResponse: {
+                name,
+                response: { result: responseObj }
+              }
+            });
+          } catch (err) {
+            appendLog(chatLogEl, 'error', err.message);
+            functionResponseParts.push({
+              functionResponse: {
+                name,
+                response: { error: err.message }
+              }
+            });
+          }
+        }
+        conversation.push({ role: 'user', parts: functionResponseParts });
+      }
+      appendLog(chatLogEl, 'error', `超過 ${maxIterations} 輪工具呼叫，強制中止`);
+    }
+
+    async function callGeminiAPI(body) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(selectedModel)}:generateContent`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': geminiKey
+        },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try {
+          const err = await res.json();
+          msg = err?.error?.message || err?.error?.status || JSON.stringify(err).slice(0, 200);
+        } catch {
+          try { msg = await res.text(); } catch {}
+        }
+        throw new Error(`Gemini API 錯誤：${msg}`);
+      }
+      return res.json();
+    }
+
+    // --- WebMCP 註冊（使用 TOOL_DEFS 為單一來源）---
+    function registerWebMcpTools() {
+      if (!('modelContext' in navigator)) {
+        statusEl.className = 'status none';
+        statusTextEl.textContent = 'navigator.modelContext 不可用';
+        return;
+      }
+      for (const def of TOOL_DEFS) {
+        navigator.modelContext.registerTool({
+          name: def.name,
+          description: def.description,
+          inputSchema: def.inputSchema,
+          annotations: def.annotations,
+          execute: def.execute
+        });
+      }
+      const impl = navigator.modelContext;
+      const isPolyfill = Boolean(impl && (impl.callTool || impl.listTools || impl.__isPolyfill));
+      statusEl.className = isPolyfill ? 'status polyfill' : 'status native';
+      statusTextEl.textContent = isPolyfill
+        ? `以 @mcp-b/global polyfill 啟用，已註冊 ${TOOL_DEFS.length} 個 tool`
+        : `navigator.modelContext 原生可用，已註冊 ${TOOL_DEFS.length} 個 tool`;
+    }
+
+    function waitForWebMcp(tries = 20) {
+      if ('modelContext' in navigator) {
+        registerWebMcpTools();
+      } else if (tries > 0) {
+        setTimeout(() => waitForWebMcp(tries - 1), 50);
+      } else {
+        statusEl.className = 'status none';
+        statusTextEl.textContent = 'navigator.modelContext 不可用（polyfill 載入失敗？）';
+      }
+    }
+
+    // --- 初始化 ---
+    renderProducts();
+    renderCart();
+    updateKeyStatus();
+    waitForWebMcp();
+  </script>
+</body>
+</html>
