@@ -1,5 +1,7 @@
 # Kuro Roasters — WebMCP Demo
 
+**Live demo：<https://kuro.tw/kuro-roasters-webmcp/>**
+
 一個假想的手沖咖啡豆選購頁面，示範怎麼用 [WebMCP](https://webmachinelearning.github.io/webmcp/) 把一個網站的功能暴露成 AI Agent 可以呼叫的 tool，並且把 Google Gemini 的 function calling 接起來，讓使用者能直接用自然語言操作整個頁面。
 
 整支 demo 就一份 `index.html`，不需要任何 build step。
@@ -34,7 +36,7 @@ python3 -m http.server 8080
 
 ## 部署
 
-這個 repo 適合直接透過 GitHub Pages 部署：settings → Pages → Source 指向 `main` branch root 即可。部署後的網址會是 `https://<user>.github.io/kuro-roasters-webmcp/`。
+這個 repo 用 GitHub Pages 部署：settings → Pages → Source 指向 `main` branch root 即可。預設網址是 `https://<user>.github.io/kuro-roasters-webmcp/`；本 repo 實際部署在 **<https://kuro.tw/kuro-roasters-webmcp/>**，透過 `kurotanshi.github.io` 的自訂 domain 對應過來。
 
 ## 架構重點
 
