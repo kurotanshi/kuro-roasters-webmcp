@@ -4,7 +4,8 @@
   "private": true,
   "description": "A WebMCP demo disguised as a coffee bean shop, with Gemini function calling wired up.",
   "scripts": {
-    "dev": "npx serve ."
+    "build": "node scripts/build.mjs",
+    "dev": "npm run build && npx serve ."
   },
   "license": "MIT",
   "author": "Kuro Hsu",

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<!--
+  Built from src/ by scripts/build.mjs. Do not hand-edit.
+  Edit files in src/ and run `npm run build` to regenerate.
+-->
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WebMCP Demo｜Kuro Roasters</title>
+  <meta name="description" content="WebMCP 範例：一個假想的手沖咖啡豆選購頁面，註冊五個 tool 讓 AI Agent 能搜尋、加入購物車、結帳。">
+  <script>
+    // 預先告訴 @mcp-b/global 如果原生 API 已經存在就不要動它
+    window.__webModelContextOptions = {
+      autoInitialize: true,
+      nativeModelContextBehavior: 'preserve'
+    };
+  </script>
+  <script src="/vendor/mcp-b-global.iife.js"></script>
+  <style>
+{{STYLES}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <h1>Kuro Roasters</h1>
+        <span class="subtitle">手沖咖啡豆選購（WebMCP Demo）</span>
+        <a class="source-link" href="https://github.com/kurotanshi/kuro-roasters-webmcp" target="_blank" rel="noopener">GitHub ↗</a>
+      </div>
+      <p>一個假想的咖啡豆選購頁面，註冊了五個 tool 給 AI Agent 使用：搜尋商品、看商品細節、加入購物車、查看購物車、結帳。</p>
+      <p class="hint">這頁是 build 後的單一檔案，原始碼拆分在 <a href="https://github.com/kurotanshi/kuro-roasters-webmcp/tree/main/src" target="_blank" rel="noopener"><code>src/</code></a> 底下，讀 source 建議從那邊開始。</p>
+      <div id="status" class="status none">
+        <span class="dot"></span>
+        <span id="status-text">偵測中…</span>
+      </div>
+    </header>
+
+    <section>
+      <h2>咖啡豆清單</h2>
+      <div class="filter-bar">
+        <input id="filter-query" type="text" placeholder="搜尋名稱或風味…" autocomplete="off" />
+        <select id="filter-origin">
+          <option value="">所有產地</option>
+        </select>
+        <select id="filter-roast">
+          <option value="">所有烘焙度</option>
+          <option value="淺焙">淺焙</option>
+          <option value="中焙">中焙</option>
+          <option value="深焙">深焙</option>
+        </select>
+      </div>
+      <div id="product-grid" class="product-grid"></div>
+    </section>
+
+    <section>
+      <h2>購物車</h2>
+      <div id="cart" class="cart"></div>
+    </section>
+
+    <section>
+      <h2>模擬 Agent 操作</h2>
+      <div class="agent-panel">
+        <p class="hint" style="margin-top:0">
+          按下情境按鈕，畫面會照一段「使用者說話 → Agent 思考 → 呼叫 tool → 畫面更新」的腳本跑過一遍，
+          搜尋條件、購物車會自己動，遇到寫入類 tool 還會跳確認視窗。
+          這就是真的 Agent 接上之後你會看到的畫面，差別只在這裡的「思考」是寫死的腳本、真實情況由 LLM 決定。
+        </p>
+        <div class="scenario-row">
+          <button data-scenario="light-roast">🎬 情境 A：找 500 元以下的淺焙豆並加入購物車</button>
+          <button data-scenario="gesha-checkout">🎬 情境 B：買一款藝伎並結帳</button>
+        </div>
+        <div class="scenario-row">
+          <button class="ghost" data-scenario="reset">重置畫面狀態</button>
+        </div>
+        <div id="agent-log" class="agent-log">
+          <div class="agent-log-empty">尚未執行，選上面任一個情境開始</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>真的跟 Agent 對話（需要 Gemini API Key）</h2>
+      <div class="chat-panel">
+        <details id="chat-config">
+          <summary>設定 API Key 與模型</summary>
+          <div class="form-row" style="margin-top:0.75rem">
+            <input id="api-key-input" type="password" placeholder="AIzaSy..." autocomplete="off" />
+            <select id="model-select">
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash（便宜快速，有免費額度）</option>
+              <option value="gemini-2.5-pro">Gemini 2.5 Pro（更聰明）</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <button class="small" id="save-key-btn">儲存</button>
+            <button class="ghost small danger" id="clear-key-btn">清除金鑰</button>
+            <span id="key-status" class="hint" style="align-self:center">未設定</span>
+          </div>
+          <div class="warn-banner">
+            可以到 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a> 申請一把免費的 Gemini API key。
+            金鑰只會存在你自己瀏覽器的 <code>localStorage</code>，從瀏覽器直接打
+            <code>generativelanguage.googleapis.com</code>，不經過這個站的伺服器。
+            公開電腦請用完後按「清除金鑰」。
+          </div>
+        </details>
+
+        <div id="chat-log" class="agent-log">
+          <div class="agent-log-empty">設定好 API key 後，試試看跟它說「幫我找衣索比亞的豆子」之類的需求</div>
+        </div>
+
+        <div class="chat-input-row">
+          <input id="chat-input" type="text" placeholder="想請 Agent 幫你做什麼？" autocomplete="off" disabled />
+          <button id="send-btn" disabled>送出</button>
+        </div>
+        <div class="chat-meta-row">
+          <p class="hint">Agent 會透過這頁註冊的 5 個 WebMCP tool 實際操作畫面，加入購物車或結帳仍會跳確認視窗。</p>
+          <button class="ghost small" id="chat-reset-btn">清空對話</button>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>手動觸發 Tool</h2>
+      <p class="hint">如果想一次呼叫一個 tool 看 input / output 格式，用下面的按鈕。這跟 Agent 實際呼叫的資料結構一致。</p>
+      <div class="tool-grid">
+        <button class="ghost" data-tool="search_products">search_products</button>
+        <button class="ghost" data-tool="get_product">get_product</button>
+        <button class="ghost" data-tool="add_to_cart">add_to_cart</button>
+        <button class="ghost" data-tool="view_cart">view_cart</button>
+        <button class="ghost" data-tool="checkout">checkout</button>
+      </div>
+      <pre id="output">還沒有輸出，按上面任一顆按鈕試試看。</pre>
+    </section>
+
+    <hr>
+
+    <section>
+      <h2>怎麼實際讓 Agent 來呼叫</h2>
+      <p class="hint">
+        最完整的體驗在 Chrome 146+ Canary：打開 <code>chrome://flags</code>，搜尋並啟用
+        <em>Experimental Web Platform features</em>，重開瀏覽器後回到這頁，狀態列會顯示「原生 API」。
+        安裝 <em>Model Context Tool Inspector</em> 擴充（Chrome Web Store 搜尋名稱）就能看到註冊的 tool 並手動觸發。
+      </p>
+      <p class="hint">
+        其他瀏覽器（含一般 Chrome / Safari / Firefox）這頁會透過
+        <a href="https://www.npmjs.com/package/@mcp-b/global" target="_blank" rel="noopener"><code>@mcp-b/global</code></a>
+        polyfill 補上 <code>navigator.modelContext</code>，手動觸發面板仍可運作，tool 本身也實際註冊完成，
+        只是目前沒有這些瀏覽器內建的 Agent 可以自動呼叫它。
+      </p>
+      <p class="hint">
+        購物車狀態存在 <code>localStorage</code>，資料不會上傳。想清空執行 <code>localStorage.clear()</code> 即可。
+      </p>
+    </section>
+  </div>
+
+  <script>
+{{SCRIPT}}
+  </script>
+</body>
+</html>

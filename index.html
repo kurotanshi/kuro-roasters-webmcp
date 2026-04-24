@@ -1,4 +1,8 @@
 <!DOCTYPE html>
+<!--
+  Built from src/ by scripts/build.mjs. Do not hand-edit.
+  Edit files in src/ and run `npm run build` to regenerate.
+-->
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
@@ -55,9 +59,20 @@
       align-items: baseline;
       gap: 0.75rem;
       margin-bottom: 0.25rem;
+      flex-wrap: wrap;
     }
     .brand h1 { font-size: 1.75rem; margin: 0; letter-spacing: 0.02em; }
     .brand .subtitle { color: var(--muted); font-size: 0.9rem; }
+    .brand .source-link {
+      margin-left: auto;
+      font-size: 0.8125rem;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 0.25rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 0.375rem;
+    }
+    .brand .source-link:hover { color: var(--accent); border-color: var(--accent); }
     h2 { font-size: 1.1rem; margin: 2rem 0 0.75rem; }
     p { margin: 0.5rem 0; color: var(--muted); }
     code {
@@ -297,8 +312,10 @@
       <div class="brand">
         <h1>Kuro Roasters</h1>
         <span class="subtitle">手沖咖啡豆選購（WebMCP Demo）</span>
+        <a class="source-link" href="https://github.com/kurotanshi/kuro-roasters-webmcp" target="_blank" rel="noopener">GitHub ↗</a>
       </div>
       <p>一個假想的咖啡豆選購頁面，註冊了五個 tool 給 AI Agent 使用：搜尋商品、看商品細節、加入購物車、查看購物車、結帳。</p>
+      <p class="hint">這頁是 build 後的單一檔案，原始碼拆分在 <a href="https://github.com/kurotanshi/kuro-roasters-webmcp/tree/main/src" target="_blank" rel="noopener"><code>src/</code></a> 底下，讀 source 建議從那邊開始。</p>
       <div id="status" class="status none">
         <span class="dot"></span>
         <span id="status-text">偵測中…</span>
@@ -423,7 +440,8 @@
   </div>
 
   <script>
-    // --- 商品資料 ---
+    // ==== data.js ====
+    // 商品資料。demo 不連後端，8 筆寫死在這裡。
     const PRODUCTS = [
       { id: 1,  name: '耶加雪菲 水洗',   origin: '衣索比亞',   roast: '淺焙',  price: 480,  flavor: '茉莉、檸檬、紅茶尾韻' },
       { id: 2,  name: '耶加雪菲 日曬',   origin: '衣索比亞',   roast: '中淺焙', price: 520,  flavor: '草莓、藍莓、發酵感' },
@@ -442,7 +460,9 @@
       return product.roast === roast;
     }
 
-    // --- 狀態 ---
+    // ==== state.js ====
+    // 模組層共享的狀態、DOM 參照與小型 util。
+    // 全站 JS 最終會被 build 成同一支 <script>，所以這些 const/let 都是 global scope。
     const CART_KEY = 'webmcp-demo-cart';
     let cart = JSON.parse(localStorage.getItem(CART_KEY) || '[]');
     let lastFilter = {};
@@ -456,7 +476,7 @@
     const originEl = document.getElementById('filter-origin');
     const roastEl = document.getElementById('filter-roast');
 
-    // 填入產地選項
+    // 從 PRODUCTS 抽出產地，填到 <select> 選項裡
     [...new Set(PRODUCTS.map(p => p.origin))].sort().forEach(origin => {
       const opt = document.createElement('option');
       opt.value = origin;
@@ -478,7 +498,9 @@
       return 'NT$' + n.toLocaleString('zh-TW');
     }
 
-    // --- 核心邏輯 ---
+    // ==== cart.js ====
+    // 純資料層操作：商品查詢 + 購物車 CRUD。
+    // 這些函式會被 UI 事件、手動按鈕、tools.js 的 execute 都呼叫。
     function searchProducts({ query, origin, roast, maxPrice } = {}) {
       const q = (query || '').trim().toLowerCase();
       return PRODUCTS.filter(p => {
@@ -530,7 +552,8 @@
       renderCart();
     }
 
-    // --- 渲染 ---
+    // ==== render.js ====
+    // 把 PRODUCTS / cart 的狀態繪到畫面上。
     function renderProducts() {
       const filter = {
         query: queryEl.value.trim() || undefined,
@@ -595,11 +618,13 @@
       `;
     }
 
-    // --- UI 事件 ---
+    // ==== ui.js ====
+    // 使用者直接操作 UI 的事件處理 + 共用的小輔助函式。
     [queryEl, originEl, roastEl].forEach(el => {
       el.addEventListener('input', renderProducts);
       el.addEventListener('change', renderProducts);
     });
+
     gridEl.addEventListener('click', e => {
       const addId = e.target.getAttribute('data-add');
       if (addId) {
@@ -607,6 +632,7 @@
         showOutput(result);
       }
     });
+
     cartEl.addEventListener('click', e => {
       const removeId = e.target.getAttribute('data-remove');
       if (removeId) removeFromCart(removeId);
@@ -636,7 +662,7 @@
       outputEl.textContent = JSON.stringify(data, null, 2);
     }
 
-    // --- Tool UI 反饋輔助 ---
+    // Tool UI 反饋輔助：tool 執行完在畫面上做視覺提示
     function flashElement(el) {
       if (!el) return;
       el.classList.remove('highlight-flash');
@@ -665,7 +691,27 @@
       return text.slice(0, max) + '…';
     }
 
-    // --- Tool 定義：單一來源，WebMCP 註冊 / 手動面板 / 模擬劇本 / 對話都共用 ---
+    // 共用 log 元件：scenarios.js 與 chat.js 都會呼叫
+    function appendLog(el, type, text) {
+      const empty = el.querySelector('.agent-log-empty');
+      if (empty) empty.remove();
+      const line = document.createElement('div');
+      line.className = `agent-log-line ${type}`;
+      const labels = { user: '使用者', think: 'Agent', call: 'Tool Call', result: 'Result', error: 'Error' };
+      line.innerHTML = '<span class="label"></span><span class="content"></span>';
+      line.querySelector('.label').textContent = labels[type] || type;
+      line.querySelector('.content').textContent = text;
+      el.appendChild(line);
+      el.scrollTop = el.scrollHeight;
+    }
+
+    // ==== tools.js ====
+    // WebMCP tool 定義：這就是整個 demo 的核心。
+    // 同一份 TOOL_DEFS 會被四條路徑讀到：
+    // 1. webmcp.js 的 registerWebMcpTools() → navigator.modelContext.registerTool(def)
+    // 2. @mcp-b/global polyfill（同樣透過 navigator.modelContext）
+    // 3. chat.js 的 getGeminiTools() → 轉成 Gemini functionDeclarations
+    // 4. 這頁自己的「模擬 Agent 操作」「手動觸發」面板 → 直接 call executeRegisteredTool()
     const TOOL_DEFS = [
       {
         name: 'search_products',
@@ -770,6 +816,8 @@
       }
     ];
 
+    // 不靠 navigator.modelContext 的內部呼叫路徑：手動面板、模擬腳本、Gemini loop 都走這裡。
+    // mockClient 給 requestUserInteraction 一個最小實作，真實 Agent runtime 會包更多 UI。
     async function executeRegisteredTool(name, input) {
       const def = TOOL_DEFS.find(t => t.name === name);
       if (!def) throw new Error(`unknown tool: ${name}`);
@@ -795,7 +843,7 @@
       return wrapped;
     }
 
-    // --- 手動觸發 Tool ---
+    // 手動觸發 Tool：頁面底下那排按鈕，給想單獨看 input/output 格式的讀者
     document.querySelectorAll('[data-tool]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const name = btn.getAttribute('data-tool');
@@ -822,21 +870,8 @@
       });
     });
 
-    // --- 共用 log 元件 ---
-    function appendLog(el, type, text) {
-      const empty = el.querySelector('.agent-log-empty');
-      if (empty) empty.remove();
-      const line = document.createElement('div');
-      line.className = `agent-log-line ${type}`;
-      const labels = { user: '使用者', think: 'Agent', call: 'Tool Call', result: 'Result', error: 'Error' };
-      line.innerHTML = '<span class="label"></span><span class="content"></span>';
-      line.querySelector('.label').textContent = labels[type] || type;
-      line.querySelector('.content').textContent = text;
-      el.appendChild(line);
-      el.scrollTop = el.scrollHeight;
-    }
-
-    // --- 模擬 Agent 操作（寫死的腳本，不需 API Key）---
+    // ==== scenarios.js ====
+    // 模擬 Agent 操作：寫死的腳本，給不想貼 API key 的讀者體驗 tool call 會怎麼跑
     const scenarioLogEl = document.getElementById('agent-log');
     let scenarioRunning = false;
 
@@ -915,7 +950,8 @@
       btn.addEventListener('click', () => runScenario(btn.getAttribute('data-scenario')));
     });
 
-    // --- 真的跟 Agent 對話（Gemini API）---
+    // ==== chat.js ====
+    // 真的跟 Gemini 對話：把 TOOL_DEFS 轉成 functionDeclarations，跑 agent loop
     const API_KEY_STORAGE = 'webmcp-demo-gemini-key';
     const MODEL_STORAGE   = 'webmcp-demo-gemini-model';
 
@@ -990,14 +1026,14 @@
     });
 
     const SYSTEM_PROMPT = `你是「Kuro Roasters」這間手沖咖啡豆選購店的選品助理。
-你可以透過以下 WebMCP tool 幫使用者搜尋商品、查看細節、加入購物車、看購物車、結帳。
+    你可以透過以下 WebMCP tool 幫使用者搜尋商品、查看細節、加入購物車、看購物車、結帳。
 
-原則：
-- 以繁體中文回覆
-- 需要商品資料時直接呼叫對應 tool，不要自己編造
-- 呼叫 add_to_cart 或 checkout 會跳確認視窗，如果回傳 cancelled 就停下來說明並等使用者下一步
-- 回覆精簡，說清楚你做了什麼、找到什麼、下一步打算做什麼
-- 使用者的需求如果太模糊（例如「幫我挑一款」），先用 search_products 拉清單再給建議`;
+    原則：
+    - 以繁體中文回覆
+    - 需要商品資料時直接呼叫對應 tool，不要自己編造
+    - 呼叫 add_to_cart 或 checkout 會跳確認視窗，如果回傳 cancelled 就停下來說明並等使用者下一步
+    - 回覆精簡，說清楚你做了什麼、找到什麼、下一步打算做什麼
+    - 使用者的需求如果太模糊（例如「幫我挑一款」），先用 search_products 拉清單再給建議`;
 
     async function sendChatMessage() {
       if (chatBusy) return;
@@ -1123,7 +1159,8 @@
       return res.json();
     }
 
-    // --- WebMCP 註冊（使用 TOOL_DEFS 為單一來源）---
+    // ==== webmcp.js ====
+    // WebMCP 註冊：Chrome 146+ Canary 原生就有 navigator.modelContext，其他瀏覽器靠 @mcp-b/global polyfill 補上
     function registerWebMcpTools() {
       if (!('modelContext' in navigator)) {
         statusEl.className = 'status none';
@@ -1147,6 +1184,7 @@
         : `navigator.modelContext 原生可用，已註冊 ${TOOL_DEFS.length} 個 tool`;
     }
 
+    // polyfill IIFE 在 <head> 載入，但 autoInitialize 有時要幾十毫秒才把 navigator.modelContext 掛上，所以輪詢幾次
     function waitForWebMcp(tries = 20) {
       if ('modelContext' in navigator) {
         registerWebMcpTools();
@@ -1158,7 +1196,8 @@
       }
     }
 
-    // --- 初始化 ---
+    // ==== init.js ====
+    // 初始化：上面所有檔案只是定義函式、綁事件、準備狀態；頁面真正跑起來從這裡開始
     renderProducts();
     renderCart();
     updateKeyStatus();

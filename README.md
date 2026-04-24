@@ -4,7 +4,7 @@
 
 一個假想的手沖咖啡豆選購頁面，示範怎麼用 [WebMCP](https://webmachinelearning.github.io/webmcp/) 把一個網站的功能暴露成 AI Agent 可以呼叫的 tool，並且把 Google Gemini 的 function calling 接起來，讓使用者能直接用自然語言操作整個頁面。
 
-整支 demo 就一份 `index.html`，不需要任何 build step。
+整支 demo 的邏輯拆分在 [`src/`](./src/) 底下方便閱讀，build 後會組成單一 `index.html` 供 GitHub Pages 部署。想先看完整程式碼建議直接讀 `src/`。
 
 ## 做得到的事
 
@@ -27,8 +27,14 @@
 ## 本地跑起來
 
 ```bash
-npx serve .
-# 或任何靜態伺服器
+npm run dev
+# 會先跑 build 把 src/ 組成 index.html，再用 npx serve . 起在 port 3000
+```
+
+或單獨 build 後用自己的靜態伺服器：
+
+```bash
+npm run build
 python3 -m http.server 8080
 ```
 
@@ -186,14 +192,31 @@ async function executeRegisteredTool(name, input) {
 
 ```
 .
-├── index.html                      # 整支 demo
+├── src/                            # 原始碼，hand-edited
+│   ├── index.template.html         # HTML 殼，{{STYLES}} / {{SCRIPT}} 為注入點
+│   ├── styles.css
+│   ├── data.js                     # PRODUCTS + matchRoast
+│   ├── state.js                    # 共享狀態、DOM refs、小 util
+│   ├── cart.js                     # 商品搜尋與購物車 CRUD
+│   ├── render.js                   # renderProducts / renderCart
+│   ├── ui.js                       # 使用者事件、appendLog、視覺提示
+│   ├── tools.js                    # TOOL_DEFS + executeRegisteredTool + 手動面板
+│   ├── scenarios.js                # 模擬 Agent 操作的腳本
+│   ├── chat.js                     # Gemini API 對話
+│   ├── webmcp.js                   # navigator.modelContext 註冊
+│   └── init.js                     # 初始化呼叫
+├── scripts/
+│   └── build.mjs                   # 把 src/ 組成單一 index.html
+├── index.html                      # build 產物，GitHub Pages 部署的檔
 ├── vendor/
 │   └── mcp-b-global.iife.js        # WebMCP polyfill
-├── package.json                    # 只為了 npm run dev
+├── package.json
 ├── .gitignore
 ├── README.md
 └── LICENSE
 ```
+
+`index.html` 是 build 出來的，**不要手改**。每次改完 `src/` 跑 `npm run build` 再 commit。
 
 ## 延伸閱讀
 
