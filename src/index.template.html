@@ -9,13 +9,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>WebMCP Demo｜Kuro Roasters</title>
   <meta name="description" content="WebMCP 範例：一個假想的手沖咖啡豆選購頁面，註冊五個 tool 讓 AI Agent 能搜尋、加入購物車、結帳。">
-  <script>
-    // 預先告訴 @mcp-b/global 如果原生 API 已經存在就不要動它
-    window.__webModelContextOptions = {
-      autoInitialize: true,
-      nativeModelContextBehavior: 'preserve'
-    };
-  </script>
+  <!--
+    @mcp-b/global 會在載入時 auto-initialize，內建就會先檢查 navigator.modelContext；
+    原生存在就直接 bail，不會蓋掉。所以不需要額外 config，原生優先是 polyfill 的 default。
+  -->
   <script src="./vendor/mcp-b-global.iife.js"></script>
   <style>
 {{STYLES}}

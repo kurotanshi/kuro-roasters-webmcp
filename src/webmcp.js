@@ -14,8 +14,11 @@ function registerWebMcpTools() {
       execute: def.execute
     });
   }
+  // @mcp-b/global 實際把自己包成 BrowserMcpServer 掛在 navigator.modelContext，
+  // 真正的 WebMCP 實作放在 .native slot。polyfill 會在那層打 __isWebMCPPolyfill marker，
+  // 所以要穿過一層才能辨識是 polyfill 還是瀏覽器原生
   const impl = navigator.modelContext;
-  const isPolyfill = Boolean(impl && (impl.callTool || impl.listTools || impl.__isPolyfill));
+  const isPolyfill = Boolean(impl?.native?.__isWebMCPPolyfill);
   statusEl.className = isPolyfill ? 'status polyfill' : 'status native';
   statusTextEl.textContent = isPolyfill
     ? `以 @mcp-b/global polyfill 啟用，已註冊 ${TOOL_DEFS.length} 個 tool`

@@ -22,7 +22,7 @@ Demo repo with two layers:
 All five tools (`search_products`, `get_product`, `add_to_cart`, `view_cart`, `checkout`) are defined exactly once in `src/tools.js` as `TOOL_DEFS`. Four independent call paths all read from this same array — if you add or rename a tool, every path updates automatically:
 
 1. **Native WebMCP runtime** — `registerWebMcpTools()` in `src/webmcp.js` iterates `TOOL_DEFS` and calls `navigator.modelContext.registerTool(def)` for each.
-2. **Polyfill fallback** — same registration path; `@mcp-b/global` provides `navigator.modelContext` when the browser lacks it. The polyfill is configured with `nativeModelContextBehavior: 'preserve'` in `src/index.template.html` so it no-ops when Chrome 146+ Canary exposes the native API.
+2. **Polyfill fallback** — same registration path; `@mcp-b/global` provides `navigator.modelContext` when the browser lacks it. The polyfill's auto-init installer checks `navigator.modelContext` first and bails if it already exists, so native (Chrome 146+ Canary with Experimental Web Platform features) is preserved by default — no config needed. `src/webmcp.js` distinguishes which side won by checking the `__isWebMCPPolyfill` marker that the polyfill sets on its own instance.
 3. **Gemini function calling** — `getGeminiTools()` / `runChatLoop()` in `src/chat.js` map each `TOOL_DEFS` entry to a Gemini `functionDeclarations` entry (name, description, inputSchema → parameters), then loop up to 6 iterations executing tool calls through `executeRegisteredTool()`.
 4. **Manual panel + scripted scenarios** — `src/tools.js` (manual buttons) and `src/scenarios.js` (pre-baked scripts) call `executeRegisteredTool()` with a mock client whose `requestUserInteraction(fn)` just runs `fn()` immediately.
 
