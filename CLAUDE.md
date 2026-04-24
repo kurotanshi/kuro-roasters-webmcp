@@ -57,7 +57,7 @@ This order is important because `state.js` grabs DOM refs that the HTML must alr
 
 ## Deployment
 
-GitHub Pages, `main` branch root. The public URL is `https://kuro.tw/kuro-roasters-webmcp/` via the `kurotanshi.github.io` custom domain. Because of the subpath, avoid introducing absolute asset paths like `/vendor/...` that would break under `/kuro-roasters-webmcp/` — the current `<script src="/vendor/mcp-b-global.iife.js">` in `src/index.template.html` works only because Pages serves from the repo root at the custom domain. Prefer relative paths (`./vendor/...`) when adding new assets.
+GitHub Pages, `main` branch root. The public URL is `https://kuro.tw/kuro-roasters-webmcp/` via the `kurotanshi.github.io` custom domain — a subpath. Always use relative paths (`./vendor/...`) for assets: an absolute `/vendor/...` resolves to `kuro.tw/vendor/...` in production and 404s.
 
 Commit both `src/` and the regenerated `index.html`. GitHub Pages serves the prebuilt file, so drift between them would ship broken. If you change any `src/` file, run `npm run build` before committing.
 
