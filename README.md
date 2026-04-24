@@ -159,15 +159,6 @@ async function callGeminiAPI(body) {
 }
 ```
 
-### 為什麼選 Gemini
-
-寫這個 demo 時評估過 Anthropic Claude 跟 Google Gemini，最後選 Gemini 有兩個實務理由：
-
-1. **免費額度大方**：Gemini 2.5 Flash 的 free tier 不用綁信用卡，讀者零成本就能玩
-2. **瀏覽器直呼親和**：Anthropic 要額外帶 `anthropic-dangerous-direct-browser-access: true` header，Gemini 預設就允許 browser CORS
-
-功能性上兩者 function calling 都穩，只是 schema 格式不一樣（Anthropic `input_schema` vs Gemini 的 `functionDeclarations[].parameters`）。要改接 Anthropic 的話 `callGeminiAPI` 改成 `callAnthropicAPI` 跟 messages / contents 格式轉換即可。
-
 ### `requestUserInteraction` 的模擬
 
 真正 WebMCP spec 下 `client.requestUserInteraction(callback)` 是由瀏覽器 / Agent runtime 提供，demo 在沒原生 runtime 的情境下自己給一個 mock：
@@ -199,6 +190,7 @@ async function executeRegisteredTool(name, input) {
 ├── vendor/
 │   └── mcp-b-global.iife.js        # WebMCP polyfill
 ├── package.json                    # 只為了 npm run dev
+├── .gitignore
 ├── README.md
 └── LICENSE
 ```
