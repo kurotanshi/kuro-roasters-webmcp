@@ -207,7 +207,6 @@ async function executeRegisteredTool(name, input) {
 - [`@mcp-b/global` npm 頁面](https://www.npmjs.com/package/@mcp-b/global)
 - [Chrome：When to use WebMCP and MCP](https://developer.chrome.com/blog/webmcp-mcp-usage)
 - [Gemini function calling 官方文件](https://ai.google.dev/gemini-api/docs/function-calling)
-- [Kuro 的部落格文章 — WebMCP 為什麼用、怎麼用、會踩什麼坑](https://kurohsu.dev/learn/learning-webmcp.html)
 
 ## License
 
