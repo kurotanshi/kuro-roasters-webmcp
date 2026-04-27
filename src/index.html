@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WebMCP Demo｜Kuro Roasters（Vue 3.5）</title>
+  <meta name="description" content="WebMCP × Vue 3.5 範例：把咖啡豆選購頁面用 Composition API + SFC + Vite 重寫，註冊 5 個 tool 給 AI Agent。">
+  <!--
+    @mcp-b/global 會在載入時 auto-initialize，內建就會先檢查 navigator.modelContext；
+    原生存在就直接 bail，不會蓋掉。所以不需要額外 config，原生優先是 polyfill 的 default。
+    這支 IIFE 從 public/vendor/ 原樣搬過來，Vite 不會處理它。
+  -->
+  <script src="./vendor/mcp-b-global.iife.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
