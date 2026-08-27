@@ -16,17 +16,17 @@ async function manualTool(name) {
       const query = prompt('關鍵字（可留空）：');
       input = query ? { query } : {};
     } else if (name === 'get_product') {
-      const id = prompt('商品 id（1-8）：');
+      const id = prompt('商品 id：');
       if (id == null) return;
       input = { id: Number(id) };
     } else if (name === 'add_to_cart') {
-      const id = prompt('商品 id（1-8）：');
+      const id = prompt('商品 id：');
       if (id == null) return;
       const qty = prompt('數量（預設 1）：') || '1';
       input = { id: Number(id), quantity: Number(qty) };
     }
-    const wrapped = await toolsStore.executeRegisteredTool(name, input);
-    outputStore.show(toolsStore.unwrapToolResult(wrapped));
+    const result = await toolsStore.executeRegisteredTool(name, input);
+    outputStore.show(result);
   } catch (err) {
     outputStore.show({ error: err.message });
   }
@@ -42,7 +42,7 @@ async function manualTool(name) {
       <button class="ghost" @click="manualTool('get_product')">get_product</button>
       <button class="ghost" @click="manualTool('add_to_cart')">add_to_cart</button>
       <button class="ghost" @click="manualTool('view_cart')">view_cart</button>
-      <button class="ghost" @click="manualTool('checkout')">checkout</button>
+      <button class="ghost" @click="manualTool('place_order')">place_order</button>
     </div>
     <pre>{{ output }}</pre>
   </section>

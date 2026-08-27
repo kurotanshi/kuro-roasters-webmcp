@@ -18,13 +18,13 @@ const { lines } = storeToRefs(logStore);
       <p class="hint" style="margin-top:0">
         按下情境按鈕，畫面會照一段「使用者說話 → Agent 思考 → 呼叫 tool → 畫面更新」的腳本跑過一遍，
         搜尋條件、購物車會自己動，遇到寫入類 tool 還會跳確認視窗。
-        這就是真的 Agent 接上之後你會看到的畫面，差別只在這裡的「思考」是寫死的腳本、真實情況由 LLM 決定。
+        這是本頁直接執行相同工具定義的模擬；真正的 WebMCP 呼叫則由瀏覽器 Agent 發起並進行安全審查。
       </p>
       <div class="scenario-row">
         <button :disabled="running" @click="scenariosStore.run('light-roast')">
           🎬 情境 A：找 500 元以下的淺焙豆並加入購物車
         </button>
-        <button :disabled="running" @click="scenariosStore.run('gesha-checkout')">
+        <button :disabled="running" @click="scenariosStore.run('gesha-order')">
           🎬 情境 B：買一款藝伎並結帳
         </button>
       </div>

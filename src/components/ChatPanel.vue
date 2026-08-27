@@ -16,7 +16,7 @@ const { lines } = storeToRefs(logStore);
 
 <template>
   <section>
-    <h2>真的跟 Agent 對話（需要 Gemini API Key）</h2>
+    <h2>Gemini function calling 模擬器（需要 API Key）</h2>
     <div class="chat-panel">
       <!-- @toggle 那行靠 Vue 模板編譯器把 `configOpen = X` 自動翻成 `configOpen.value = X`
            （configOpen 是上面 storeToRefs 解構出來的 ref）。 -->
@@ -33,12 +33,12 @@ const { lines } = storeToRefs(logStore);
             autocomplete="off"
           />
           <select v-model="model">
-            <option value="gemini-2.5-flash">Gemini 2.5 Flash（便宜快速，有免費額度）</option>
-            <option value="gemini-2.5-pro">Gemini 2.5 Pro（更聰明）</option>
+            <option value="gemini-3.7-flash">Gemini 3.7 Flash（最新穩定版）</option>
+            <option value="gemini-3.6-flash">Gemini 3.6 Flash（穩定版）</option>
           </select>
         </div>
         <div class="form-row">
-          <button class="small" @click="chatStore.saveKey">儲存</button>
+          <button class="small" @click="chatStore.saveKey">套用</button>
           <button class="ghost small danger" @click="chatStore.clearKey">清除金鑰</button>
           <span
             class="hint"
@@ -48,9 +48,9 @@ const { lines } = storeToRefs(logStore);
         </div>
         <div class="warn-banner">
           可以到 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a> 申請一把免費的 Gemini API key。
-          金鑰只會存在你自己瀏覽器的 <code>localStorage</code>，從瀏覽器直接打
+          這仍是瀏覽器端教學示範，請只使用測試用且已限制用途的金鑰，不要輸入正式環境憑證。
+          金鑰只留在目前分頁的記憶體，重新整理即清除。請求會從瀏覽器直接送到
           <code>generativelanguage.googleapis.com</code>，不經過這個站的伺服器。
-          公開電腦請用完後按「清除金鑰」。
         </div>
       </details>
 
@@ -71,7 +71,7 @@ const { lines } = storeToRefs(logStore);
         <button :disabled="!canSend" @click="chatStore.send">送出</button>
       </div>
       <div class="chat-meta-row">
-        <p class="hint">Agent 會透過這頁註冊的 5 個 WebMCP tool 實際操作畫面，加入購物車或結帳仍會跳確認視窗。</p>
+        <p class="hint">這是把相同工具定義轉成 Gemini function declarations 後在本頁直接執行的模擬，不是瀏覽器 Site tools；寫入操作仍會先跳確認視窗。</p>
         <button class="ghost small" @click="chatStore.reset">清空對話</button>
       </div>
     </div>

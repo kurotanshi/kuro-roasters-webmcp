@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { shallowRef } from 'vue';
 import { useToolsStore } from './tools.js';
 import { useCartStore } from './cart.js';
 import { useFilterStore } from './filter.js';
@@ -14,7 +14,7 @@ const SCENARIOS = {
     { type: 'think', text: '耶加雪菲水洗評價不錯，把它加入購物車' },
     { type: 'call',  tool: 'add_to_cart', args: { id: 1, quantity: 1 } }
   ],
-  'gesha-checkout': [
+  'gesha-order': [
     { type: 'user',  text: '我想試試看藝伎，順便結帳' },
     { type: 'think', text: '先查「藝伎」相關商品' },
     { type: 'call',  tool: 'search_products', args: { query: '藝伎' } },
@@ -23,7 +23,7 @@ const SCENARIOS = {
     { type: 'think', text: '確認購物車內容' },
     { type: 'call',  tool: 'view_cart' },
     { type: 'think', text: '送出結帳' },
-    { type: 'call',  tool: 'checkout' }
+    { type: 'call',  tool: 'place_order' }
   ]
 };
 
@@ -36,7 +36,7 @@ export const useScenariosStore = defineStore('scenarios', () => {
   const filter = useFilterStore();
   const log    = useAgentLogStore();
 
-  const running = ref(false);
+  const running = shallowRef(false);
 
   async function run(scenarioId) {
     if (running.value) return;
@@ -68,8 +68,7 @@ export const useScenariosStore = defineStore('scenarios', () => {
             : `${step.tool}()`;
           log.append('call', argText);
           try {
-            const wrapped = await tools.executeRegisteredTool(step.tool, step.args || {});
-            const result = tools.unwrapToolResult(wrapped);
+            const result = await tools.executeRegisteredTool(step.tool, step.args || {});
             log.append('result', truncate(JSON.stringify(result)));
           } catch (err) {
             log.append('error', err.message);
