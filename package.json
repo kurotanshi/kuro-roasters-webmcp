@@ -17,12 +17,12 @@
   "dependencies": {
     "@mcp-b/global": "^5.0.1",
     "@vueuse/core": "^14.4.0",
-    "pinia": "^3.0.0",
+    "pinia": "^3.0.4",
     "vue": "^3.5.41"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.8",
     "vite": "^8.2.2",
-    "vite-plugin-singlefile": "^2.3.0"
+    "vite-plugin-singlefile": "^2.3.3"
   }
 }
