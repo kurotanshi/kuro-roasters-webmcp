@@ -1,142 +1,229 @@
 import { defineStore } from 'pinia';
-import { getProduct, searchProducts, formatPrice } from '../data.js';
+import { ORIGINS, getProduct, searchProducts, formatPrice } from '../data.js';
 import { useCartStore } from './cart.js';
 import { useFilterStore } from './filter.js';
 import { useFlashStore } from './flash.js';
 
 // WebMCP tool 定義 store。
-// 同一份 TOOL_DEFS 會被四條路徑讀到：
-// 1. webmcp store 透過 navigator.modelContext.registerTool（原生）
-// 2. @mcp-b/global polyfill（同樣透過 navigator.modelContext）
-// 3. chat store 的 getGeminiTools() 轉成 Gemini functionDeclarations
-// 4. 模擬腳本與手動觸發面板，直接 call executeRegisteredTool
+// 同一份 TOOL_DEFS 會被多條路徑讀到：
+// 1. webmcp store 透過 document.modelContext.registerTool（原生 / polyfill）
+// 2. chat store 的 getGeminiTools() 轉成 Gemini functionDeclarations
+// 3. 模擬腳本與手動觸發面板，透過 executeRegisteredTool 本機執行
 export const useToolsStore = defineStore('tools', () => {
   const cart   = useCartStore();
   const filter = useFilterStore();
   const flash  = useFlashStore();
 
+  function normalizeInput(input) {
+    const value = input ?? {};
+    if (typeof value !== 'object' || Array.isArray(value)) {
+      throw new TypeError('tool input must be an object');
+    }
+    return value;
+  }
+
+  function assertOnlyKeys(input, allowedKeys) {
+    const unknown = Object.keys(input).find(key => !allowedKeys.includes(key));
+    if (unknown) throw new TypeError(`unknown input property: ${unknown}`);
+  }
+
+  function parseProductId(value) {
+    if (!Number.isInteger(value) || value < 1 || value > 8) {
+      throw new RangeError('id must be an integer between 1 and 8');
+    }
+    return value;
+  }
+
+  function parseQuantity(value = 1) {
+    if (!Number.isInteger(value) || value < 1 || value > 99) {
+      throw new RangeError('quantity must be an integer between 1 and 99');
+    }
+    return value;
+  }
+
+  function parseSearchInput(input) {
+    const args = normalizeInput(input);
+    assertOnlyKeys(args, ['query', 'origin', 'roast', 'maxPrice']);
+    if (args.query !== undefined && (typeof args.query !== 'string' || args.query.length > 100)) {
+      throw new TypeError('query must be a string up to 100 characters');
+    }
+    if (args.origin !== undefined && !ORIGINS.includes(args.origin)) {
+      throw new RangeError(`origin must be one of: ${ORIGINS.join(', ')}`);
+    }
+    if (args.roast !== undefined && !['淺焙', '中焙', '深焙'].includes(args.roast)) {
+      throw new RangeError('roast must be 淺焙, 中焙, or 深焙');
+    }
+    if (args.maxPrice !== undefined && (
+      typeof args.maxPrice !== 'number'
+      || !Number.isFinite(args.maxPrice)
+      || args.maxPrice < 0
+      || args.maxPrice > 100000
+    )) {
+      throw new RangeError('maxPrice must be a finite number between 0 and 100000');
+    }
+    return args;
+  }
+
+  function parseProductInput(input, { quantity = false } = {}) {
+    const args = normalizeInput(input);
+    assertOnlyKeys(args, quantity ? ['id', 'quantity'] : ['id']);
+    return {
+      id: parseProductId(args.id),
+      ...(quantity ? { quantity: parseQuantity(args.quantity) } : {})
+    };
+  }
+
+  function parseEmptyInput(input) {
+    const args = normalizeInput(input);
+    assertOnlyKeys(args, []);
+    return args;
+  }
+
+  function checkSignal(options) {
+    options?.signal?.throwIfAborted?.();
+  }
+
   const TOOL_DEFS = [
     {
       name: 'search_products',
+      title: '搜尋咖啡豆',
       description: '搜尋咖啡豆。可用關鍵字（比對 name 與 flavor）、產地、烘焙度、價格上限過濾。執行後頁面篩選條件會跟著更新。',
       inputSchema: {
         type: 'object',
         properties: {
-          query:    { type: 'string', description: '搜尋關鍵字，會比對名稱與風味描述' },
-          origin:   { type: 'string', description: '產地，例如：衣索比亞、肯亞、巴拿馬' },
+          query:    { type: 'string', maxLength: 100, description: '搜尋關鍵字，會比對名稱與風味描述' },
+          origin:   { type: 'string', enum: ORIGINS, description: '咖啡豆產地' },
           roast:    { type: 'string', enum: ['淺焙', '中焙', '深焙'], description: '烘焙度' },
-          maxPrice: { type: 'number', description: '價格上限（TWD）' }
-        }
+          maxPrice: { type: 'number', minimum: 0, maximum: 100000, description: '價格上限（TWD）' }
+        },
+        additionalProperties: false
       },
-      annotations: { readOnlyHint: true },
-      execute: async (input) => {
-        const args = input || {};
+      annotations: {
+        readOnlyHint: true,
+        untrustedContentHint: false
+      },
+      execute: async (input, options) => {
+        checkSignal(options);
+        const args = parseSearchInput(input);
         if (filter.applyArgs(args)) flash.flash('filter');
-        const results = searchProducts(args);
-        return { content: [{ type: 'text', text: JSON.stringify(results) }] };
+        return searchProducts(args);
       }
     },
     {
       name: 'get_product',
+      title: '查看咖啡豆',
       description: '依 id 取得單一咖啡豆的完整資訊（產地、烘焙度、風味、價格）。',
       inputSchema: {
         type: 'object',
-        properties: { id: { type: 'number', description: '商品 id' } },
-        required: ['id']
+        properties: {
+          id: { type: 'integer', minimum: 1, maximum: 8, description: '商品 id' }
+        },
+        required: ['id'],
+        additionalProperties: false
       },
-      annotations: { readOnlyHint: true },
-      execute: async (input) => {
-        try {
-          return { content: [{ type: 'text', text: JSON.stringify(getProduct(input.id)) }] };
-        } catch (err) {
-          return { content: [{ type: 'text', text: JSON.stringify({ error: err.message }) }] };
-        }
+      annotations: {
+        readOnlyHint: true,
+        untrustedContentHint: false
+      },
+      execute: async (input, options) => {
+        checkSignal(options);
+        const { id } = parseProductInput(input);
+        return getProduct(id);
       }
     },
     {
       name: 'add_to_cart',
-      description: '把指定商品加入購物車。會跳出確認視窗讓使用者核准後才真的加入，使用者取消會回傳 cancelled。',
+      title: '加入購物車',
+      description: '立即把指定商品與數量加入購物車，並更新使用者目前看到的購物車。',
       inputSchema: {
         type: 'object',
         properties: {
-          id:       { type: 'number', description: '商品 id' },
-          quantity: { type: 'number', description: '數量，預設 1', minimum: 1 }
+          id:       { type: 'integer', minimum: 1, maximum: 8, description: '商品 id' },
+          quantity: { type: 'integer', minimum: 1, maximum: 99, description: '數量，預設 1' }
         },
-        required: ['id']
+        required: ['id'],
+        additionalProperties: false
       },
-      execute: async (input, client) => {
-        const product = (() => { try { return getProduct(input.id); } catch { return null; } })();
-        if (!product) {
-          return { content: [{ type: 'text', text: JSON.stringify({ error: 'product not found' }) }] };
-        }
-        const qty = input.quantity || 1;
-        const confirmed = await client.requestUserInteraction(async () => {
-          return window.confirm(
-            `Agent 想把「${product.name}」×${qty}（${formatPrice(product.price * qty)}）加入購物車，確定嗎？`
-          );
-        });
-        if (!confirmed) {
-          return { content: [{ type: 'text', text: JSON.stringify({ status: 'cancelled' }) }] };
-        }
-        const result = cart.addToCart(input.id, qty);
+      annotations: {
+        readOnlyHint: false,
+        untrustedContentHint: false
+      },
+      execute: async (input, options) => {
+        checkSignal(options);
+        const { id, quantity } = parseProductInput(input, { quantity: true });
+        const result = cart.addToCart(id, quantity);
         flash.flash('cart');
-        return { content: [{ type: 'text', text: JSON.stringify(result) }] };
+        return result;
       }
     },
     {
       name: 'view_cart',
+      title: '查看購物車',
       description: '取得目前購物車內容、商品數、合計金額。',
-      inputSchema: { type: 'object', properties: {} },
-      annotations: { readOnlyHint: true },
-      execute: async () => {
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      annotations: {
+        readOnlyHint: true,
+        untrustedContentHint: false
+      },
+      execute: async (input, options) => {
+        checkSignal(options);
+        parseEmptyInput(input);
         flash.flash('cart');
-        return { content: [{ type: 'text', text: JSON.stringify(cart.viewCart()) }] };
+        return cart.viewCart();
       }
     },
     {
-      name: 'checkout',
-      description: '結帳，送出購物車所有項目成為一張訂單。會跳出確認視窗顯示總金額，使用者取消會回傳 cancelled。',
-      inputSchema: { type: 'object', properties: {} },
-      execute: async (input, client) => {
+      name: 'place_order',
+      title: '送出訂單',
+      description: '立即把目前購物車內容送出成為一張模擬訂單；成功後會清空購物車。',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      annotations: {
+        readOnlyHint: false,
+        untrustedContentHint: false
+      },
+      execute: async (input, options) => {
+        checkSignal(options);
+        parseEmptyInput(input);
         const snapshot = cart.viewCart();
         if (snapshot.items.length === 0) {
-          return { content: [{ type: 'text', text: JSON.stringify({ status: 'empty' }) }] };
-        }
-        const confirmed = await client.requestUserInteraction(async () => {
-          return window.confirm(
-            `Agent 準備送出訂單，總金額 ${formatPrice(snapshot.total)}，確定結帳嗎？`
-          );
-        });
-        if (!confirmed) {
-          return { content: [{ type: 'text', text: JSON.stringify({ status: 'cancelled' }) }] };
+          return { status: 'empty' };
         }
         const orderId = 'ORD-' + Date.now().toString(36).toUpperCase();
         cart.clearCart();
-        return {
-          content: [{ type: 'text', text: JSON.stringify({ status: 'placed', orderId, ...snapshot }) }]
-        };
+        return { status: 'placed', orderId, ...snapshot };
       }
     }
   ];
 
-  // 不靠 navigator.modelContext 的內部呼叫路徑：手動面板、模擬腳本、Gemini loop 都走這裡。
-  // mockClient 給 requestUserInteraction 一個最小實作，真實 Agent runtime 會包更多 UI。
-  async function executeRegisteredTool(name, input) {
+  function confirmLocalExecution(name, input) {
+    if (name === 'add_to_cart') {
+      const { id, quantity } = parseProductInput(input, { quantity: true });
+      const product = getProduct(id);
+      return window.confirm(
+        `模擬 Agent 想把「${product.name}」×${quantity}（${formatPrice(product.price * quantity)}）加入購物車，確定嗎？`
+      );
+    }
+    if (name === 'place_order') {
+      const snapshot = cart.viewCart();
+      if (snapshot.items.length === 0) return true;
+      return window.confirm(
+        `模擬 Agent 準備送出訂單，總金額 ${formatPrice(snapshot.total)}，確定嗎？`
+      );
+    }
+    return true;
+  }
+
+  // 情境、手動面板與 Gemini 模擬器不經過瀏覽器 agent 的安全審查，
+  // 所以只在這條本機路徑自行確認寫入；原生 WebMCP 交給瀏覽器處理。
+  async function executeRegisteredTool(name, input, { confirmWrites = true } = {}) {
     const def = TOOL_DEFS.find(t => t.name === name);
     if (!def) throw new Error(`unknown tool: ${name}`);
-    const mockClient = {
-      requestUserInteraction: async (fn) => await fn()
-    };
-    return await def.execute(input || {}, mockClient);
-  }
-
-  function unwrapToolResult(wrapped) {
-    if (wrapped?.content?.[0]?.text !== undefined) {
-      try { return JSON.parse(wrapped.content[0].text); }
-      catch { return wrapped.content[0].text; }
+    if (confirmWrites && !confirmLocalExecution(name, input ?? {})) {
+      return { status: 'cancelled' };
     }
-    return wrapped;
+    const controller = new AbortController();
+    return def.execute(input ?? {}, { signal: controller.signal });
   }
 
-  return { TOOL_DEFS, executeRegisteredTool, unwrapToolResult };
+  return { TOOL_DEFS, executeRegisteredTool };
 });

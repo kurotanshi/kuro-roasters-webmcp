@@ -2,48 +2,55 @@ import { defineStore } from 'pinia';
 import { reactive } from 'vue';
 import { useToolsStore } from './tools.js';
 
-// WebMCP 註冊 store：原生 navigator.modelContext 優先，沒有再退到 @mcp-b/global polyfill。
+// WebMCP 註冊 store：document.modelContext 是目前標準入口。
 export const useWebMcpStore = defineStore('webmcp', () => {
   const tools = useToolsStore();
-  // status.kind ∈ {'detecting' | 'native' | 'polyfill' | 'none'}，模板用 :class 直接掛
+  // status.kind ∈ {'detecting' | 'ready' | 'none'}，模板用 :class 直接掛
   const status = reactive({ kind: 'detecting', text: '偵測中…' });
+  let registrationController;
 
-  function register() {
-    if (!('modelContext' in navigator)) {
+  async function register() {
+    cleanup();
+    const context = document.modelContext;
+    if (!context || typeof context.registerTool !== 'function') {
       status.kind = 'none';
-      status.text = 'navigator.modelContext 不可用';
-      return;
+      status.text = 'document.modelContext 不可用';
+      return false;
     }
-    for (const def of tools.TOOL_DEFS) {
-      navigator.modelContext.registerTool({
+
+    const controller = new AbortController();
+    registrationController = controller;
+    status.kind = 'detecting';
+    status.text = '正在註冊 WebMCP tools…';
+
+    try {
+      await Promise.all(tools.TOOL_DEFS.map(def => context.registerTool({
         name: def.name,
+        title: def.title,
         description: def.description,
         inputSchema: def.inputSchema,
         annotations: def.annotations,
         execute: def.execute
-      });
-    }
-    // @mcp-b/global 會把自己包成 BrowserMcpServer 掛在 navigator.modelContext，
-    // 真正的 WebMCP 實作放在 .native slot；polyfill 在那層打 __isWebMCPPolyfill marker。
-    const impl = navigator.modelContext;
-    const isPolyfill = Boolean(impl?.native?.__isWebMCPPolyfill);
-    status.kind = isPolyfill ? 'polyfill' : 'native';
-    status.text = isPolyfill
-      ? `以 @mcp-b/global polyfill 啟用，已註冊 ${tools.TOOL_DEFS.length} 個 tool`
-      : `navigator.modelContext 原生可用，已註冊 ${tools.TOOL_DEFS.length} 個 tool`;
-  }
+      }, { signal: controller.signal })));
 
-  // polyfill IIFE 在 <head> 載入，但 autoInitialize 有時要幾十毫秒才把 navigator.modelContext 掛上
-  function waitFor(tries = 20) {
-    if ('modelContext' in navigator) {
-      register();
-    } else if (tries > 0) {
-      setTimeout(() => waitFor(tries - 1), 50);
-    } else {
+      if (registrationController !== controller) return false;
+      status.kind = 'ready';
+      status.text = `document.modelContext 已註冊 ${tools.TOOL_DEFS.length} 個 tool`;
+      return true;
+    } catch (err) {
+      if (registrationController !== controller) return false;
+      controller.abort();
+      registrationController = undefined;
       status.kind = 'none';
-      status.text = 'navigator.modelContext 不可用（polyfill 載入失敗？）';
+      status.text = `WebMCP 註冊失敗：${err?.message || String(err)}`;
+      return false;
     }
   }
 
-  return { status, waitFor };
+  function cleanup() {
+    registrationController?.abort();
+    registrationController = undefined;
+  }
+
+  return { status, register, cleanup };
 });

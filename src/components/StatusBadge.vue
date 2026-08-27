@@ -1,5 +1,5 @@
 <script setup>
-// WebMCP 註冊狀態小膠囊。直接吃 useWebMcp() 回傳的 status reactive 物件。
+// WebMCP 註冊狀態小膠囊。直接吃 store 回傳的 status reactive 物件。
 defineProps({
   status: { type: Object, required: true }
 });
