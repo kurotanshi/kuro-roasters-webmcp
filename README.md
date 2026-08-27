@@ -45,6 +45,10 @@ chrome://flags/#enable-webmcp-testing
 
 若要在 Chrome 149+ DevTools 的 Application 面板檢查、手動執行與追蹤工具，另啟用 `chrome://flags/#devtools-webmcp-support`。
 
+### Pinia 與 structured clone
+
+`TOOL_DEFS` 從 Pinia store 回傳時，預設會被 Vue 轉成 reactive Proxy；WebMCP 註冊工具時需要跨執行環境複製 schema 與 annotations，但 structured clone 無法複製 Proxy，因此會出現 `An object could not be cloned.`，並讓 ChatGPT 判定頁面沒有可用工具。本專案用 Vue 的 `markRaw()` 保持工具定義為普通物件，避免 WebMCP 註冊失敗。
+
 ## 本地開發
 
 需要 Node 20.19+ 或 Node 22.12+：

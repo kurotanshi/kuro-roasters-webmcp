@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { markRaw } from 'vue';
 import { ORIGINS, PRODUCT_IDS, getProduct, searchProducts, formatPrice } from '../data.js';
 import { useCartStore } from './cart.js';
 import { useFilterStore } from './filter.js';
@@ -82,7 +83,7 @@ export const useToolsStore = defineStore('tools', () => {
     options?.signal?.throwIfAborted?.();
   }
 
-  const TOOL_DEFS = [
+  const TOOL_DEFS = markRaw([
     {
       name: 'search_products',
       title: '搜尋咖啡豆',
@@ -192,7 +193,7 @@ export const useToolsStore = defineStore('tools', () => {
         return { status: 'placed', orderId, ...snapshot };
       }
     }
-  ];
+  ]);
 
   function confirmLocalExecution(name, input) {
     if (name === 'add_to_cart') {
