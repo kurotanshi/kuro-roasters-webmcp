@@ -25,7 +25,7 @@
 
 後三者是本機模擬，不代表瀏覽器 Agent 已透過 WebMCP 呼叫。由於沒有瀏覽器的安全審查，`add_to_cart` 與 `place_order` 會先用 `window.confirm()` 徵求確認；真正的 WebMCP 路徑則交由瀏覽器審查與確認，避免重複提示。
 
-Gemini API key 只保留在目前分頁的記憶體，重新整理即清除；不會寫入 `localStorage`。購物車與模型偏好會留在 `localStorage`。
+Gemini API key 只保留在目前分頁的記憶體，重新整理即清除；不會寫入 `localStorage`。新版首次建立聊天 store 時，也會移除舊版曾寫入的 `webmcp-demo-gemini-key`。購物車與模型偏好會留在 `localStorage`。
 
 ## 實際測試 WebMCP
 

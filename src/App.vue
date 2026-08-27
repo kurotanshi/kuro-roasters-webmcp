@@ -66,7 +66,7 @@ onUnmounted(() => webmcp.cleanup());
         不代表瀏覽器 Agent 已呼叫 WebMCP。
       </p>
       <p class="hint">
-        購物車狀態存在 <code>localStorage</code>，資料不會上傳。想清空執行 <code>localStorage.clear()</code> 即可。
+        購物車狀態存在 <code>localStorage</code>，資料不會上傳。想清空請使用上方購物車的「清空」按鈕。
       </p>
     </section>
   </div>

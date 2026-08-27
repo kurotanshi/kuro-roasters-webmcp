@@ -48,6 +48,7 @@ const { lines } = storeToRefs(logStore);
         </div>
         <div class="warn-banner">
           可以到 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a> 申請一把免費的 Gemini API key。
+          這仍是瀏覽器端教學示範，請只使用測試用且已限制用途的金鑰，不要輸入正式環境憑證。
           金鑰只留在目前分頁的記憶體，重新整理即清除。請求會從瀏覽器直接送到
           <code>generativelanguage.googleapis.com</code>，不經過這個站的伺服器。
         </div>

@@ -15,6 +15,8 @@ const SYSTEM_PROMPT = `你是「Kuro Roasters」這間手沖咖啡豆選購店�
 - 回覆精簡，說清楚你做了什麼、找到什麼、下一步打算做什麼
 - 使用者的需求如果太模糊（例如「幫我挑一款」），先用 search_products 拉清單再給建議`;
 
+const LEGACY_API_KEY_STORAGE_KEY = 'webmcp-demo-gemini-key';
+
 const truncate = (t, max = 240) => t.length <= max ? t : t.slice(0, max) + '…';
 
 export function toGeminiTools(toolDefs) {
@@ -32,6 +34,7 @@ export const useChatStore = defineStore('chat', () => {
   const log   = useChatLogStore();
 
   // API key 僅留在此分頁的記憶體；模型偏好可以安全地持久化。
+  localStorage.removeItem(LEGACY_API_KEY_STORAGE_KEY);
   const apiKey = shallowRef('');
   const model  = useLocalStorage('webmcp-demo-gemini-model', 'gemini-3.7-flash');
   if (!['gemini-3.7-flash', 'gemini-3.6-flash'].includes(model.value)) {
@@ -63,6 +66,7 @@ export const useChatStore = defineStore('chat', () => {
 
   function clearKey() {
     if (!confirm('清除此分頁記憶體中的金鑰？')) return;
+    localStorage.removeItem(LEGACY_API_KEY_STORAGE_KEY);
     apiKey.value = '';
     configOpen.value = true;
   }

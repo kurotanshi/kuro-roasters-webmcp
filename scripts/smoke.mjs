@@ -2,16 +2,30 @@ import assert from 'node:assert/strict';
 import { createPinia, setActivePinia } from 'pinia';
 import { PRODUCTS } from '../src/data.js';
 import { useCartStore } from '../src/stores/cart.js';
-import { toGeminiTools } from '../src/stores/chat.js';
+import { toGeminiTools, useChatStore } from '../src/stores/chat.js';
 import { useFilterStore } from '../src/stores/filter.js';
 import { useToolsStore } from '../src/stores/tools.js';
 
 setActivePinia(createPinia());
 
+const storage = new Map([['webmcp-demo-gemini-key', 'legacy-secret']]);
+globalThis.localStorage = {
+  removeItem: key => storage.delete(key)
+};
+globalThis.confirm = () => true;
+
 const cart = useCartStore();
 const filter = useFilterStore();
 const tools = useToolsStore();
+const chat = useChatStore();
 const run = (name, input = {}) => tools.executeRegisteredTool(name, input, { confirmWrites: false });
+
+assert.equal(storage.has('webmcp-demo-gemini-key'), false);
+storage.set('webmcp-demo-gemini-key', 'legacy-secret');
+chat.apiKey = 'memory-secret';
+chat.clearKey();
+assert.equal(storage.has('webmcp-demo-gemini-key'), false);
+assert.equal(chat.apiKey, '');
 
 cart.clearCart();
 
