@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ORIGINS, getProduct, searchProducts, formatPrice } from '../data.js';
+import { ORIGINS, PRODUCT_IDS, getProduct, searchProducts, formatPrice } from '../data.js';
 import { useCartStore } from './cart.js';
 import { useFilterStore } from './filter.js';
 import { useFlashStore } from './flash.js';
@@ -28,9 +28,8 @@ export const useToolsStore = defineStore('tools', () => {
   }
 
   function parseProductId(value) {
-    if (!Number.isInteger(value) || value < 1 || value > 8) {
-      throw new RangeError('id must be an integer between 1 and 8');
-    }
+    if (!Number.isInteger(value)) throw new RangeError('id must be an integer');
+    if (!PRODUCT_IDS.includes(value)) throw new RangeError(`id must be one of: ${PRODUCT_IDS.join(', ')}`);
     return value;
   }
 
@@ -116,7 +115,7 @@ export const useToolsStore = defineStore('tools', () => {
       inputSchema: {
         type: 'object',
         properties: {
-          id: { type: 'integer', minimum: 1, maximum: 8, description: '商品 id' }
+          id: { type: 'integer', enum: PRODUCT_IDS, description: '商品 id' }
         },
         required: ['id'],
         additionalProperties: false
@@ -138,7 +137,7 @@ export const useToolsStore = defineStore('tools', () => {
       inputSchema: {
         type: 'object',
         properties: {
-          id:       { type: 'integer', minimum: 1, maximum: 8, description: '商品 id' },
+          id:       { type: 'integer', enum: PRODUCT_IDS, description: '商品 id' },
           quantity: { type: 'integer', minimum: 1, maximum: 99, description: '數量，預設 1' }
         },
         required: ['id'],
@@ -221,8 +220,7 @@ export const useToolsStore = defineStore('tools', () => {
     if (confirmWrites && !confirmLocalExecution(name, input ?? {})) {
       return { status: 'cancelled' };
     }
-    const controller = new AbortController();
-    return def.execute(input ?? {}, { signal: controller.signal });
+    return def.execute(input ?? {});
   }
 
   return { TOOL_DEFS, executeRegisteredTool };

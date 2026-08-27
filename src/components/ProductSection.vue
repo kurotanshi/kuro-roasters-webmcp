@@ -44,6 +44,14 @@ function add(id) {
         <option value="中焙">中焙</option>
         <option value="深焙">深焙</option>
       </select>
+      <input
+        v-model.number="filter.maxPrice"
+        type="number"
+        min="0"
+        max="100000"
+        aria-label="最高價格（TWD）"
+        placeholder="最高價格（TWD）"
+      />
     </div>
     <div class="product-grid">
       <div

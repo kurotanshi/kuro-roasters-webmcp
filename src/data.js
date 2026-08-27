@@ -10,6 +10,7 @@ export const PRODUCTS = [
   { id: 8,  name: '曼特寧 G1',       origin: '印尼',       roast: '深焙',   price: 450,  flavor: '木質、黑巧克力、濃厚 body' }
 ];
 
+export const PRODUCT_IDS = PRODUCTS.map(p => p.id);
 export const ORIGINS = [...new Set(PRODUCTS.map(p => p.origin))].sort();
 
 // 把「中淺焙」歸到「淺焙」filter 時同時包含
