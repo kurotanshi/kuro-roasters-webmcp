@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 
-// build 結果是單一 index.html（WebMCP bridge、JS、CSS 全部 inline）。
+// build 結果是單一 index.html（應用 JS、CSS 全部 inline）。
 // postbuild 再把 dist/* 攤平到 repo 根目錄，讓 GitHub Pages 直接服務。
 export default defineConfig({
   // src/ 是 Vite 入口（src/index.html）

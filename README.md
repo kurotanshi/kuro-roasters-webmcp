@@ -4,7 +4,7 @@
 
 一個假想的手沖咖啡豆商店，示範網站如何透過 [WebMCP](https://webmachinelearning.github.io/webmcp/) 的 `document.modelContext`，把既有功能註冊成瀏覽器 AI Agent 可發現、可呼叫的工具。
 
-專案使用 Vue 3.5、Pinia、VueUse、Vite 8 與 [`@mcp-b/global`](https://www.npmjs.com/package/@mcp-b/global)。原始碼拆分在 [`src/`](./src/)，build 後會產生可直接部署的單一 `index.html`。
+專案使用 Vue 3.5、Pinia、VueUse 與 Vite 8。原始碼拆分在 [`src/`](./src/)，build 後會產生可直接部署的單一 `index.html`。
 
 ## 五個工具
 
@@ -41,7 +41,7 @@ Gemini API key 只保留在目前分頁的記憶體，重新整理即清除；�
 chrome://flags/#enable-webmcp-testing
 ```
 
-啟用後重新啟動瀏覽器。Chrome 149 也提供 WebMCP Origin Trial。即使瀏覽器沒有原生實作，本 demo 仍會由 `@mcp-b/global` 補上 `document.modelContext`，方便工具檢查器與 MCP-B transport 使用；這不等於該瀏覽器內建 Agent。
+啟用後重新啟動瀏覽器。Chrome 149 也提供 WebMCP Origin Trial。本 demo 不載入 WebMCP polyfill，執行環境必須原生提供 `document.modelContext` 才會註冊工具；若頁面顯示 `document.modelContext 不可用`，情境按鈕、Gemini function calling 與手動面板仍可本機執行，但瀏覽器 Agent 無法透過 WebMCP 呼叫工具。
 
 若要在 Chrome 149+ DevTools 的 Application 面板檢查、手動執行與追蹤工具，另啟用 `chrome://flags/#devtools-webmcp-support`。
 
@@ -77,7 +77,7 @@ Vite 會先產生 `dist/`，`scripts/postbuild.mjs` 再把單檔產物同步到 
 ```text
 src/
 ├─ index.html             Vite HTML 入口
-├─ main.js                載入 WebMCP bridge，建立 Vue app
+├─ main.js                建立 Vue app；WebMCP API 由執行環境提供
 ├─ App.vue                頁面 layout 與 WebMCP 註冊生命週期
 ├─ data.js                商品資料與純資料 helpers
 ├─ stores/

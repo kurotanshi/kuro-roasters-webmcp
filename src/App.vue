@@ -60,10 +60,9 @@ onUnmounted(() => webmcp.cleanup());
       <p class="hint">
         Chrome 測試版可開啟 <code>chrome://flags/#enable-webmcp-testing</code> 啟用 WebMCP 測試功能，
         並用 <code>chrome://flags/#devtools-webmcp-support</code> 開啟 DevTools 檢查面板；
-        Chrome 149 另提供 Origin Trial。其他瀏覽器仍可透過
-        <a href="https://www.npmjs.com/package/@mcp-b/global" target="_blank" rel="noopener"><code>@mcp-b/global</code></a>
-        補上 <code>document.modelContext</code>；手動面板、情境按鈕與 Gemini function calling 都是本頁的本機模擬，
-        不代表瀏覽器 Agent 已呼叫 WebMCP。
+        Chrome 149 另提供 Origin Trial。本頁不載入 WebMCP polyfill，執行環境必須原生提供
+        <code>document.modelContext</code> 才會註冊工具；手動面板、情境按鈕與 Gemini function calling 都是本頁的本機模擬，
+        即使 WebMCP 不可用仍可操作，但不代表瀏覽器 Agent 已呼叫 WebMCP。
       </p>
       <p class="hint">
         購物車狀態存在 <code>localStorage</code>，資料不會上傳。想清空請使用上方購物車的「清空」按鈕。

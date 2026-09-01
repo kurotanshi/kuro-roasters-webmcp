@@ -7,7 +7,7 @@ import { useFlashStore } from './flash.js';
 
 // WebMCP tool 定義 store。
 // 同一份 TOOL_DEFS 會被多條路徑讀到：
-// 1. webmcp store 透過 document.modelContext.registerTool（原生 / polyfill）
+// 1. webmcp store 透過原生 document.modelContext.registerTool
 // 2. chat store 的 getGeminiTools() 轉成 Gemini functionDeclarations
 // 3. 模擬腳本與手動觸發面板，透過 executeRegisteredTool 本機執行
 export const useToolsStore = defineStore('tools', () => {
